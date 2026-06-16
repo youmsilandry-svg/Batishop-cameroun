@@ -55,6 +55,26 @@ export default function AdminProduits() {
   const [loadingDetail, setLoadingDetail]       = useState(false)
   const [ongletDetail, setOngletDetail]         = useState<'infos'|'stock'|'edit'>('infos')
   const [form, setForm]           = useState<any>({})
+  const [uploading, setUploading] = useState(false)
+
+  const televerserImage = async (file: File) => {
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { alert('Image trop lourde (max 5 Mo).'); return }
+    setUploading(true)
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    const path = `produits/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    const res = await fetch(`${BASE}/storage/v1/object/${path}`, {
+      method: 'POST',
+      headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': file.type, 'x-upsert': 'true' },
+      body: file,
+    })
+    if (res.ok) {
+      setForm((p: any) => ({ ...p, image_url: `${BASE}/storage/v1/object/public/${path}` }))
+    } else {
+      alert('Échec du téléversement. Vérifiez que le bucket « produits » existe et est public (voir le SQL fourni).')
+    }
+    setUploading(false)
+  }
   const [saving, setSaving]       = useState(false)
   const [succes, setSucces]       = useState('')
 
@@ -468,6 +488,22 @@ export default function AdminProduits() {
                         </select>
                       ) : f.type==='number' ? (
                         <input type="number" value={v??0} onChange={e=>setForm((p:any)=>({...p,[f.k]:Number(e.target.value)}))} style={{ ...S.input, width:'100%' }}/>
+                      ) : f.k==='image_url' ? (
+                        <div>
+                          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+                            <div style={{ width:60, height:60, borderRadius:8, background:'#f3f3f1', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #e8e8e8' }}>
+                              {v ? <img src={v} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/> : <span style={{ fontSize:22 }}>🖼</span>}
+                            </div>
+                            <label style={{ ...S.btn('#1A2332'), cursor:'pointer', opacity:uploading?0.6:1 }}>
+                              {uploading ? '⏳ Téléversement…' : '📁 Choisir une image'}
+                              <input type="file" accept="image/*" disabled={uploading}
+                                onChange={e=>{ const f=e.target.files?.[0]; if(f) televerserImage(f); e.currentTarget.value='' }}
+                                style={{ display:'none' }}/>
+                            </label>
+                            {v && <button type="button" onClick={()=>setForm((p:any)=>({...p,image_url:''}))} style={S.btn('#fff','#b71c1c')}>Retirer</button>}
+                          </div>
+                          <input value={v||''} placeholder="…ou collez une URL d'image" onChange={e=>setForm((p:any)=>({...p,image_url:e.target.value}))} style={{ ...S.input, width:'100%', marginTop:8 }}/>
+                        </div>
                       ) : (
                         <input value={v||''} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}/>
                       )}
