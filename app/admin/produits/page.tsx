@@ -142,10 +142,11 @@ export default function AdminProduits() {
         <div style={{ fontWeight:800, fontSize:16, padding:'4px 8px', marginBottom:12 }}>Bati<span style={{color:'#C0392B'}}>Shop</span> Admin</div>
         <a href="/admin"              style={S.navbtn(false) as any}>📊 Dashboard</a>
         <button                       style={S.navbtn(true)}>📦 Produits</button>
-        <a href="/admin"              style={S.navbtn(false) as any}>🛒 Commandes</a>
-        <a href="/admin"              style={S.navbtn(false) as any}>📋 Devis</a>
+        <a href="/admin/commandes"    style={S.navbtn(false) as any}>🛒 Commandes</a>
+        <a href="/admin/devis"        style={S.navbtn(false) as any}>📋 Devis</a>
         <a href="/admin/partenaires"  style={S.navbtn(false) as any}>🏪 Partenaires</a>
-        <a href="/admin"              style={S.navbtn(false) as any}>📊 Stocks</a>
+        <a href="/admin/stocks-admin" style={S.navbtn(false) as any}>📊 Stocks</a>
+        <a href="/admin/clients"      style={S.navbtn(false) as any}>👤 Clients</a>
         <div style={{ marginTop:'auto', paddingTop:12, borderTop:'1px solid rgba(255,255,255,.1)' }}>
           <a href="/" style={{ color:'rgba(255,255,255,.35)', fontSize:12, textDecoration:'none' }}>← Voir le site</a>
         </div>
