@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { Store, TrendingUp, Tag, Package, Users, MapPin, ArrowRight, Phone, Mail } from 'lucide-react'
+import { Store, TrendingUp, Tag, Package, Users, MapPin, ArrowRight } from 'lucide-react'
+import FormulaireCandidature from './FormulaireCandidature'
 
 export const metadata = {
   title: 'Devenir partenaire — BatiShop Cameroun',
@@ -14,17 +15,11 @@ const AVANTAGES = [
 ]
 
 const ETAPES = [
-  ['1', 'Vous postulez', 'Envoyez-nous votre candidature. Nous vérifions votre quincaillerie.'],
+  ['1', 'Vous postulez', 'Remplissez le formulaire en ligne. Nous vérifions votre quincaillerie.'],
   ['2', 'Nous créons votre compte', 'Vous recevez vos identifiants pour accéder à votre espace partenaire.'],
   ['3', 'Vous publiez vos produits', 'Choisissez vos produits, fixez vos prix et déclarez vos stocks.'],
   ['4', 'Les clients vous trouvent', 'Votre magasin apparaît dans les résultats de recherche de votre ville.'],
 ]
-
-const SUJET = encodeURIComponent('Candidature partenaire BatiShop')
-const CORPS = encodeURIComponent(
-  "Bonjour,\n\nJe souhaite rejoindre le réseau de partenaires BatiShop.\n\n" +
-  "- Nom du magasin :\n- Ville :\n- Quartier / adresse :\n- Téléphone :\n- Type de produits vendus :\n\nMerci."
-)
 
 export default function PartenairesPage() {
   return (
@@ -43,7 +38,7 @@ export default function PartenairesPage() {
             fixez vos prix et touchez de nouveaux clients dans votre ville — gratuitement.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
-            <a href={`mailto:partenaires@batishop.cm?subject=${SUJET}&body=${CORPS}`}
+            <a href="#formulaire"
               className="inline-flex items-center gap-2 bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded-lg transition-colors">
               Rejoindre le réseau <ArrowRight size={18} />
             </a>
@@ -95,26 +90,21 @@ export default function PartenairesPage() {
         </div>
       </section>
 
-      {/* CTA FINAL */}
-      <section className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <MapPin size={28} className="text-brique mx-auto mb-3" />
-        <h2 className="font-condensed font-bold text-2xl text-acier mb-2">
-          Prêt à développer votre activité ?
-        </h2>
-        <p className="text-gray-500 mb-8">
-          Envoyez-nous votre candidature dès aujourd'hui. C'est gratuit et sans engagement.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-          <a href={`mailto:partenaires@batishop.cm?subject=${SUJET}&body=${CORPS}`}
-            className="inline-flex items-center gap-2 bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded-lg transition-colors">
-            <Mail size={18} /> Postuler par email
-          </a>
-          <a href="tel:+237600000000"
-            className="inline-flex items-center gap-2 border border-gray-300 hover:border-brique hover:text-brique text-gray-600 font-semibold px-6 py-3 rounded-lg transition-colors">
-            <Phone size={18} /> Nous appeler
-          </a>
+      {/* FORMULAIRE D'INSCRIPTION */}
+      <section id="formulaire" className="max-w-3xl mx-auto px-4 py-16 scroll-mt-20">
+        <div className="text-center mb-8">
+          <MapPin size={28} className="text-brique mx-auto mb-3" />
+          <h2 className="font-condensed font-bold text-2xl text-acier mb-2">
+            Prêt à développer votre activité ?
+          </h2>
+          <p className="text-gray-500">
+            Remplissez le formulaire ci-dessous. C'est gratuit et sans engagement.
+          </p>
         </div>
-        <p className="text-sm text-gray-400 mt-6">
+
+        <FormulaireCandidature />
+
+        <p className="text-sm text-gray-400 mt-8 text-center">
           Déjà partenaire ?{' '}
           <Link href="/partenaires/connexion" className="text-brique font-semibold hover:underline">
             Accéder à mon espace
