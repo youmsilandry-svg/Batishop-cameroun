@@ -1,26 +1,9 @@
 'use client'
-import { useState } from 'react'
 import Link from 'next/link'
-import { ShoppingCart, Heart, Eye } from 'lucide-react'
+import { Store, Heart } from 'lucide-react'
 import { Produit, formatPrix } from '../../lib/supabase'
 
 export function CarteProduit({ produit }: { produit: Produit }) {
-  const [ajoute, setAjoute] = useState(false)
-
-  const ajouterAuPanier = (e: React.MouseEvent) => {
-    e.preventDefault()
-    const data = localStorage.getItem('batishop_panier')
-    const items = data ? JSON.parse(data) : []
-    const existe = items.find((a: any) => a.produit.id === produit.id)
-    const nouveau = existe
-      ? items.map((a: any) => a.produit.id === produit.id ? { ...a, quantite: a.quantite + 1 } : a)
-      : [...items, { produit, quantite: 1 }]
-    localStorage.setItem('batishop_panier', JSON.stringify(nouveau))
-    window.dispatchEvent(new Event('panier-updated'))
-    setAjoute(true)
-    setTimeout(() => setAjoute(false), 2000)
-  }
-
   const reduction = produit.prix_ancien
     ? Math.round((1 - produit.prix / produit.prix_ancien) * 100)
     : null
@@ -73,25 +56,22 @@ export function CarteProduit({ produit }: { produit: Produit }) {
         <h3 className="font-medium text-sm text-acier leading-snug mb-1 line-clamp-2">{produit.nom}</h3>
         <p className="text-xs text-gray-400 mb-2">Réf: {produit.reference}</p>
 
-        <div className="flex items-baseline gap-2 mb-2">
+        <div className="flex items-baseline gap-2 mb-1">
           <span className="font-condensed font-bold text-base text-brique">{formatPrix(produit.prix)}</span>
           {produit.prix_ancien && (
             <span className="text-xs text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
           )}
           <span className="text-xs text-gray-400">/{produit.unite}</span>
         </div>
+        <p className="text-[11px] text-gray-400 mb-2">Prix moyen — choisissez votre boutique</p>
 
-        <button
-          onClick={ajouterAuPanier}
-          disabled={produit.stock === 0}
+        <span
           className={`w-full flex items-center justify-center gap-2 py-2 rounded text-xs font-semibold transition-colors ${
-            ajoute ? 'bg-green-600 text-white' :
-            produit.stock === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
-            'bg-acier text-white hover:bg-brique'
+            produit.stock === 0 ? 'bg-gray-100 text-gray-400' : 'bg-acier text-white group-hover:bg-brique'
           }`}>
-          <ShoppingCart size={14}/>
-          {ajoute ? '✓ Ajouté !' : produit.stock === 0 ? 'Indisponible' : 'Ajouter au panier'}
-        </button>
+          <Store size={14}/>
+          {produit.stock === 0 ? 'Indisponible' : 'Voir les boutiques'}
+        </span>
       </div>
     </Link>
   )

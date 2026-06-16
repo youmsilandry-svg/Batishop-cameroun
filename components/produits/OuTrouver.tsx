@@ -1,207 +1,141 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { MapPin, Phone, Clock, Navigation, Store, Package, ChevronRight, Zap } from 'lucide-react'
-import Link from 'next/link'
-import { supabase, VILLES, formatPrix } from '../../lib/supabase'
+import { MapPin, Phone, Clock, Navigation, Store, Truck, Check, Minus, Plus, ShoppingCart, TrendingDown } from 'lucide-react'
+import { supabase, VILLES, formatPrix, Produit } from '../../lib/supabase'
+import { ajouterLignePanier } from '../../lib/panier'
 
-const DELAIS = [
-  { id: 'maintenant', label: 'Maintenant', icon: '⚡', color: 'bg-green-100 text-green-800 border-green-300' },
-  { id: 'aujourd_hui', label: "Aujourd'hui", icon: '🌅', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-  { id: 'demain', label: 'Demain', icon: '📅', color: 'bg-purple-100 text-purple-800 border-purple-300' },
-  { id: 'semaine', label: 'Cette semaine', icon: '📆', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-]
-
-export function OuTrouver({ produitId, produitNom }: { produitId: string; produitNom: string }) {
+export function OuTrouver({ produit }: { produit: Produit }) {
   const [ville, setVille] = useState('Douala')
-  const [delai, setDelai] = useState('maintenant')
   const [partenaires, setPartenaires] = useState<any[]>([])
   const [prixMoyen, setPrixMoyen] = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [cherche, setCherche] = useState(false)
+  const [qtes, setQtes] = useState<Record<string, number>>({})
+  const [ajoute, setAjoute] = useState<string>('')
 
-  // Prix moyen du site (tous partenaires, toutes villes) pour ce produit
   useEffect(() => {
-    supabase
-      .from('prix_moyen_partenaires')
+    supabase.from('prix_moyen_partenaires')
       .select('prix_moyen, prix_min, prix_max, nb_partenaires')
-      .eq('produit_id', produitId)
-      .maybeSingle()
+      .eq('produit_id', produit.id).maybeSingle()
       .then(({ data }) => setPrixMoyen(data))
-  }, [produitId])
+  }, [produit.id])
 
   const chercher = async () => {
     setLoading(true)
-    setCherche(true)
-
     const { data } = await supabase
       .from('stocks_partenaires')
-      .select(`
-        quantite, disponible_immediat, prix_local,
-        partenaires_magasins!inner(id, nom, ville, quartier, adresse, telephone, horaires, latitude, longitude)
-      `)
-      .eq('produit_id', produitId)
+      .select(`quantite, disponible_immediat, prix_local,
+        partenaires_magasins!inner(id, nom, ville, quartier, adresse, telephone, horaires, latitude, longitude, livre, frais_livraison_base)`)
+      .eq('produit_id', produit.id)
       .eq('partenaires_magasins.ville', ville)
       .eq('partenaires_magasins.actif', true)
       .gt('quantite', 0)
-
-    setPartenaires(data || [])
+    // Trier par prix croissant : le moins cher d'abord
+    const tri = (data || []).sort((a: any, b: any) => (a.prix_local || 0) - (b.prix_local || 0))
+    setPartenaires(tri)
     setLoading(false)
   }
+  useEffect(() => { chercher() }, [ville])
 
-  useEffect(() => { chercher() }, [ville, delai])
+  const moyenne = prixMoyen?.prix_moyen || 0
+  const qteDe = (id: string) => qtes[id] || 1
+  const setQte = (id: string, q: number, max: number) => setQtes(s => ({ ...s, [id]: Math.max(1, Math.min(max, q)) }))
 
-  const delaiConfig = DELAIS.find(d => d.id === delai) || DELAIS[0]
+  const ajouter = (s: any) => {
+    const mag = s.partenaires_magasins
+    ajouterLignePanier(produit, {
+      id: mag.id, nom: mag.nom, ville: mag.ville, prix_local: s.prix_local,
+      livre: mag.livre, frais_livraison_base: mag.frais_livraison_base,
+    }, qteDe(mag.id))
+    setAjoute(mag.id); setTimeout(() => setAjoute(''), 1800)
+  }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+    <div id="ou-trouver" className="bg-white rounded-xl border border-gray-100 overflow-hidden">
       <div className="p-5 border-b border-gray-100">
-        <h3 className="font-condensed font-bold text-lg text-acier flex items-center gap-2 mb-4">
-          <MapPin size={18} className="text-brique"/> Où trouver ce produit ?
+        <h3 className="font-condensed font-bold text-lg text-acier flex items-center gap-2 mb-1">
+          <MapPin size={18} className="text-brique"/> Choisissez votre boutique
         </h3>
-
-        {/* Filtres */}
-        <div className="flex gap-3 flex-wrap">
-          <div className="flex-1 min-w-32">
-            <label className="text-xs font-semibold text-gray-400 block mb-1">Ma ville</label>
-            <select value={ville} onChange={e => setVille(e.target.value)} className="input-field text-sm">
-              {VILLES.map(v => <option key={v}>{v}</option>)}
-            </select>
-          </div>
-          <div className="flex-1 min-w-32">
-            <label className="text-xs font-semibold text-gray-400 block mb-1">Quand ?</label>
-            <div className="flex gap-1 flex-wrap">
-              {DELAIS.map(d => (
-                <button key={d.id} onClick={() => setDelai(d.id)}
-                  className={`text-xs px-2.5 py-1.5 rounded-full border font-medium transition-colors ${
-                    delai === d.id ? d.color : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                  {d.icon} {d.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <p className="text-xs text-gray-500 mb-4">Comparez les prix et achetez chez le partenaire de votre choix.</p>
+        <div>
+          <label className="text-xs font-semibold text-gray-400 block mb-1">Ma ville</label>
+          <select value={ville} onChange={e => setVille(e.target.value)} className="input-field text-sm max-w-xs">
+            {VILLES.map(v => <option key={v}>{v}</option>)}
+          </select>
         </div>
       </div>
 
       <div className="p-5">
+        {/* Prix moyen de référence */}
+        {prixMoyen && prixMoyen.nb_partenaires > 0 && (
+          <div className="flex items-center justify-between gap-3 p-3 bg-acier/5 border border-acier/10 rounded-xl mb-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prix moyen BatiShop</p>
+              <p className="text-xs text-gray-400">
+                Sur {prixMoyen.nb_partenaires} boutique{prixMoyen.nb_partenaires > 1 ? 's' : ''}
+                {prixMoyen.prix_min !== prixMoyen.prix_max && <> · de {formatPrix(prixMoyen.prix_min)} à {formatPrix(prixMoyen.prix_max)}</>}
+              </p>
+            </div>
+            <span className="font-condensed font-bold text-lg text-acier shrink-0">{formatPrix(prixMoyen.prix_moyen)}</span>
+          </div>
+        )}
+
         {loading ? (
-          <div className="space-y-3">
-            {[1,2].map(i => <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"/>)}
+          <div className="space-y-3">{[1,2].map(i => <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse"/>)}</div>
+        ) : partenaires.length > 0 ? (
+          <div className="space-y-2.5">
+            {partenaires.map((s: any, i: number) => {
+              const mag = s.partenaires_magasins
+              const moinsCher = moyenne > 0 && s.prix_local < moyenne
+              const meilleur = i === 0 && moinsCher
+              return (
+                <div key={mag.id} className={`p-3 rounded-xl border transition-colors ${meilleur ? 'bg-green-50 border-green-300' : 'bg-beton border-transparent hover:bg-gray-100'}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-acier/10 flex items-center justify-center shrink-0">
+                      <Store size={15} className="text-acier"/>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <span className="font-bold text-sm text-acier truncate">{mag.nom}</span>
+                        {meilleur && <span className="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5"><TrendingDown size={10}/> Meilleur prix</span>}
+                        {!meilleur && moinsCher && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Sous la moyenne</span>}
+                        <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">{s.quantite} en stock</span>
+                        {mag.livre && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5"><Truck size={10}/> Livraison</span>}
+                      </div>
+                      <p className="text-xs text-gray-500 flex items-center gap-1 truncate"><MapPin size={10}/> {mag.quartier ? `${mag.quartier} · ` : ''}{mag.adresse}</p>
+                      {mag.horaires && <p className="text-xs text-gray-400 flex items-center gap-1"><Clock size={10}/> {mag.horaires}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className={`font-condensed font-bold text-lg ${moinsCher ? 'text-green-700' : 'text-brique'}`}>{formatPrix(s.prix_local)}</div>
+                      <div className="text-xs text-gray-400">/ {produit.unite}</div>
+                    </div>
+                  </div>
+
+                  {/* Quantité + ajout */}
+                  <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <button onClick={() => setQte(mag.id, qteDe(mag.id) - 1, s.quantite)} className="px-2 py-1 hover:bg-beton text-acier"><Minus size={13}/></button>
+                        <span className="px-3 py-1 text-sm font-medium border-x">{qteDe(mag.id)}</span>
+                        <button onClick={() => setQte(mag.id, qteDe(mag.id) + 1, s.quantite)} className="px-2 py-1 hover:bg-beton text-acier"><Plus size={13}/></button>
+                      </div>
+                      <a href={`tel:${mag.telephone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-brique"><Phone size={12}/> Appeler</a>
+                      {mag.latitude && <a href={`https://maps.google.com/?q=${mag.latitude},${mag.longitude}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-gray-500 hover:text-brique"><Navigation size={12}/> GPS</a>}
+                    </div>
+                    <button onClick={() => ajouter(s)}
+                      className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${ajoute === mag.id ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
+                      {ajoute === mag.id ? <><Check size={15}/> Ajouté</> : <><ShoppingCart size={15}/> Ajouter</>}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         ) : (
-          <>
-            {/* BatiShop livraison — toujours affiché en premier */}
-            <div className="flex items-start gap-3 p-3 bg-brique/5 border border-brique/20 rounded-xl mb-3">
-              <div className="w-10 h-10 rounded-full bg-brique flex items-center justify-center shrink-0">
-                <Package size={18} className="text-white"/>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-bold text-sm text-acier">BatiShop — Livraison à domicile</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                    delai === 'maintenant' || delai === 'aujourd_hui'
-                      ? 'bg-blue-100 text-blue-800 border-blue-300'
-                      : 'bg-green-100 text-green-800 border-green-300'}`}>
-                    {delai === 'maintenant' || delai === 'aujourd_hui' ? "🌅 Aujourd'hui" : '⚡ Disponible'}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500">Commande en ligne · Livraison à {ville} · Prix garanti</p>
-              </div>
-              <Link href={`/panier`} className="shrink-0 btn-primary text-xs py-1.5 px-3">
-                Commander
-              </Link>
-            </div>
-
-            {/* Prix moyen pratiqué par les magasins partenaires */}
-            {prixMoyen && prixMoyen.nb_partenaires > 0 && (
-              <div className="flex items-center justify-between gap-3 p-3 bg-acier/5 border border-acier/10 rounded-xl mb-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prix moyen en magasin</p>
-                  <p className="text-xs text-gray-400">
-                    Sur {prixMoyen.nb_partenaires} magasin{prixMoyen.nb_partenaires > 1 ? 's' : ''} partenaire{prixMoyen.nb_partenaires > 1 ? 's' : ''}
-                    {prixMoyen.prix_min !== prixMoyen.prix_max && (
-                      <> · de {formatPrix(prixMoyen.prix_min)} à {formatPrix(prixMoyen.prix_max)}</>
-                    )}
-                  </p>
-                </div>
-                <span className="font-condensed font-bold text-lg text-acier shrink-0">{formatPrix(prixMoyen.prix_moyen)}</span>
-              </div>
-            )}
-
-            {/* Partenaires locaux */}
-            {partenaires.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  🏪 {partenaires.length} partenaire{partenaires.length > 1 ? 's' : ''} à {ville}
-                </p>
-                {partenaires.slice(0, 3).map((s: any, i: number) => {
-                  const mag = s.partenaires_magasins
-                  return (
-                    <div key={i} className="flex items-start gap-3 p-3 bg-beton rounded-xl hover:bg-gray-100 transition-colors">
-                      <div className="w-9 h-9 rounded-full bg-acier/10 flex items-center justify-center shrink-0">
-                        <Store size={15} className="text-acier"/>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <span className="font-bold text-sm text-acier truncate">{mag.nom}</span>
-                          {s.prix_local > 0 && (
-                            <span className="text-xs bg-brique/10 text-brique px-1.5 py-0.5 rounded-full font-bold">
-                              {formatPrix(s.prix_local)}
-                            </span>
-                          )}
-                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
-                            {s.quantite} en stock
-                          </span>
-                          {s.disponible_immediat && (
-                            <span className="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
-                              <Zap size={9}/> Retrait immédiat
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
-                          <MapPin size={10}/> {mag.quartier ? `${mag.quartier} · ` : ''}{mag.adresse}
-                        </p>
-                        {mag.horaires && (
-                          <p className="text-xs text-gray-400 flex items-center gap-1">
-                            <Clock size={10}/> {mag.horaires}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-1.5 shrink-0">
-                        <a href={`tel:${mag.telephone}`}
-                          className="flex items-center gap-1 bg-brique text-white text-xs px-2.5 py-1.5 rounded-lg hover:bg-brique-dark font-medium">
-                          <Phone size={11}/> Appeler
-                        </a>
-                        {mag.latitude && (
-                          <a href={`https://maps.google.com/?q=${mag.latitude},${mag.longitude}`} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 border border-gray-200 text-gray-600 text-xs px-2.5 py-1.5 rounded-lg hover:text-brique hover:border-brique">
-                            <Navigation size={11}/> GPS
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-                {partenaires.length > 3 && (
-                  <Link href={`/disponible?q=${encodeURIComponent(produitNom)}&ville=${ville}&delai=${delai}`}
-                    className="flex items-center justify-center gap-1 text-sm text-brique hover:underline py-2">
-                    Voir les {partenaires.length - 3} autres points de retrait <ChevronRight size={14}/>
-                  </Link>
-                )}
-              </div>
-            ) : cherche && (
-              <div className="text-center py-6 text-gray-400">
-                <Store size={28} className="mx-auto mb-2 opacity-40"/>
-                <p className="text-sm">Pas de stock chez nos partenaires à {ville}</p>
-                <p className="text-xs mt-1">Essayez un autre délai ou commandez en livraison</p>
-              </div>
-            )}
-
-            {/* Voir tous les points */}
-            <Link href={`/disponible?q=${encodeURIComponent(produitNom)}&ville=${ville}&delai=${delai}`}
-              className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 border border-gray-200 rounded-lg text-sm text-gray-500 hover:border-brique hover:text-brique transition-colors">
-              <MapPin size={14}/> Voir tous les points de disponibilité →
-            </Link>
-          </>
+          <div className="text-center py-6 text-gray-400">
+            <Store size={28} className="mx-auto mb-2 opacity-40"/>
+            <p className="text-sm">Aucune boutique n’a ce produit en stock à {ville}</p>
+            <p className="text-xs mt-1">Essayez une autre ville</p>
+          </div>
         )}
       </div>
     </div>
