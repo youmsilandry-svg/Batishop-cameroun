@@ -59,7 +59,7 @@ export default function EspacePartenaire() {
       setBoutiques(mag)
       const m = mag[0]
       setMagasin(m)
-      setForm({ nom: m.nom, telephone: m.telephone, adresse: m.adresse, quartier: m.quartier, horaires: m.horaires, description: m.description })
+      setForm({ nom: m.nom, telephone: m.telephone, adresse: m.adresse, quartier: m.quartier, horaires: m.horaires, description: m.description, latitude: m.latitude ?? '', longitude: m.longitude ?? '' })
 
       // Charger TOUS les produits BatiShop
       const prods = await apiAuth('produits?select=id,nom,categorie,reference,prix,unite&actif=eq.true&order=nom.asc', t!)
@@ -89,17 +89,28 @@ export default function EspacePartenaire() {
   // Changer de boutique : recharge les stocks de la boutique choisie
   const choisirBoutique = async (b: any) => {
     setMagasin(b)
-    setForm({ nom: b.nom, telephone: b.telephone, adresse: b.adresse, quartier: b.quartier, horaires: b.horaires, description: b.description })
+    setForm({ nom: b.nom, telephone: b.telephone, adresse: b.adresse, quartier: b.quartier, horaires: b.horaires, description: b.description, latitude: b.latitude ?? '', longitude: b.longitude ?? '' })
     setModifStocks({}); setModifPrix({}); setModeAjout(false)
     const stks = await apiAuth(`stocks_partenaires?partenaire_id=eq.${b.id}&select=*`, token)
     setStocks(stks || [])
   }
 
+  const maPosition = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) { alert('Géolocalisation non supportée par ce navigateur'); return }
+    navigator.geolocation.getCurrentPosition(
+      p => setForm((f: any) => ({ ...f, latitude: p.coords.latitude.toFixed(6), longitude: p.coords.longitude.toFixed(6) })),
+      () => alert('Position refusée ou indisponible. Vous pouvez coller les coordonnées depuis Google Maps.'),
+      { enableHighAccuracy: true, timeout: 8000 },
+    )
+  }
+
   const sauvegarderInfos = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    await apiAuth(`partenaires_magasins?id=eq.${magasin.id}`, token, { method: 'PATCH', body: JSON.stringify(form) })
-    setMagasin((m: any) => ({ ...m, ...form }))
+    const lat = parseFloat(form.latitude), lng = parseFloat(form.longitude)
+    const payload = { ...form, latitude: isNaN(lat) ? null : lat, longitude: isNaN(lng) ? null : lng }
+    await apiAuth(`partenaires_magasins?id=eq.${magasin.id}`, token, { method: 'PATCH', body: JSON.stringify(payload) })
+    setMagasin((m: any) => ({ ...m, ...payload }))
     setSucces('✓ Informations mises à jour')
     setSaving(false)
     setTimeout(() => setSucces(''), 3000)
@@ -449,6 +460,31 @@ export default function EspacePartenaire() {
                   onChange={e => setForm((p: any) => ({ ...p, description: e.target.value }))}
                   style={{ ...S.input, resize: 'vertical' }}/>
               </div>
+
+              {/* Position géographique */}
+              <div style={{ gridColumn: '1/-1', background: '#f9f9f7', borderRadius: 10, padding: 14 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>📍 Position de ma boutique</div>
+                <p style={{ fontSize: 12, color: '#888', margin: '0 0 10px' }}>
+                  Permet aux clients de vous trouver et de trier par distance. Cliquez sur « Ma position » si vous êtes
+                  dans la boutique, ou collez les coordonnées depuis Google Maps (clic droit sur le lieu → cliquez sur les chiffres pour les copier).
+                </p>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#888', display: 'block', marginBottom: 4 }}>Latitude</label>
+                    <input value={form.latitude || ''} onChange={e => setForm((p: any) => ({ ...p, latitude: e.target.value }))} placeholder="4.0489" style={{ ...S.input, width: 140 }}/>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#888', display: 'block', marginBottom: 4 }}>Longitude</label>
+                    <input value={form.longitude || ''} onChange={e => setForm((p: any) => ({ ...p, longitude: e.target.value }))} placeholder="9.7020" style={{ ...S.input, width: 140 }}/>
+                  </div>
+                  <button type="button" onClick={maPosition} style={S.btn('#1A2332')}>📍 Ma position</button>
+                  {form.latitude && form.longitude && (
+                    <a href={`https://maps.google.com/?q=${form.latitude},${form.longitude}`} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 12, color: '#C0392B', textDecoration: 'none', fontWeight: 600 }}>Vérifier sur la carte →</a>
+                  )}
+                </div>
+              </div>
+
               <div style={{ gridColumn: '1/-1', paddingTop: 4 }}>
                 <div style={{ background: '#fff3cd', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#856404', marginBottom: 12 }}>
                   ⚠️ Votre prix et votre stock se gèrent dans l'onglet « Mes produits ». Votre statut est géré par BatiShop. Pour toute question : <a href="tel:+237600000000" style={{ color: '#C0392B' }}>+237 6XX XXX XXX</a>
