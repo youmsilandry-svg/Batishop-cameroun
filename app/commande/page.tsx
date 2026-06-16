@@ -58,7 +58,7 @@ export default function PageCommande() {
         const mode = modeDe(g)
         const frais = fraisDe(g)
         const { data: sc, error: e2 } = await supabase.from('sous_commandes').insert({
-          commande_id: cmd.id, point_vente_id: g.point_vente_id,
+          commande_id: cmd.id, point_vente_id: g.point_vente_id === 'batishop' ? null : g.point_vente_id,
           numero: `${numero}-${String.fromCharCode(65 + i)}`,
           mode, adresse_livraison: mode === 'livraison' ? form.adresse : null,
           frais_livraison: frais, sous_total: g.sousTotal, total: g.sousTotal + frais,

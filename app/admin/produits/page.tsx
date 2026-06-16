@@ -87,7 +87,7 @@ export default function AdminProduits() {
   const ouvrirDetail = async (p: any) => {
     setDetail(p); setForm({ ...p }); setOngletDetail('infos'); setPartenairesStock([])
     setLoadingDetail(true)
-    const stocks = await api(`stocks_partenaires?produit_id=eq.${p.id}&select=quantite,disponible_immediat,partenaires_magasins(nom,ville,quartier,telephone,statut)&order=quantite.desc`)
+    const stocks = await api(`stocks_partenaires?produit_id=eq.${p.id}&select=quantite,prix_local,disponible_immediat,partenaires_magasins(nom,ville,quartier,telephone,statut)&order=prix_local.asc`)
     setPartenairesStock(Array.isArray(stocks) ? stocks.filter((s:any) => s.partenaires_magasins?.statut === 'actif') : [])
     setLoadingDetail(false)
   }
@@ -142,11 +142,10 @@ export default function AdminProduits() {
         <div style={{ fontWeight:800, fontSize:16, padding:'4px 8px', marginBottom:12 }}>Bati<span style={{color:'#C0392B'}}>Shop</span> Admin</div>
         <a href="/admin"              style={S.navbtn(false) as any}>📊 Dashboard</a>
         <button                       style={S.navbtn(true)}>📦 Produits</button>
-        <a href="/admin/commandes"    style={S.navbtn(false) as any}>🛒 Commandes</a>
-        <a href="/admin/devis"        style={S.navbtn(false) as any}>📋 Devis</a>
+        <a href="/admin"              style={S.navbtn(false) as any}>🛒 Commandes</a>
+        <a href="/admin"              style={S.navbtn(false) as any}>📋 Devis</a>
         <a href="/admin/partenaires"  style={S.navbtn(false) as any}>🏪 Partenaires</a>
-        <a href="/admin/stocks-admin" style={S.navbtn(false) as any}>📊 Stocks</a>
-        <a href="/admin/clients"      style={S.navbtn(false) as any}>👤 Clients</a>
+        <a href="/admin"              style={S.navbtn(false) as any}>📊 Stocks</a>
         <div style={{ marginTop:'auto', paddingTop:12, borderTop:'1px solid rgba(255,255,255,.1)' }}>
           <a href="/" style={{ color:'rgba(255,255,255,.35)', fontSize:12, textDecoration:'none' }}>← Voir le site</a>
         </div>
@@ -390,7 +389,7 @@ export default function AdminProduits() {
                     <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                       <thead>
                         <tr style={{ background:'#f9f9f7' }}>
-                          {['Partenaire','Ville','Téléphone','Stock','Statut'].map(h => (
+                          {['Partenaire','Ville','Prix','Téléphone','Stock','Statut'].map(h => (
                             <th key={h} style={{ padding:'9px 14px', textAlign:'left', fontSize:11, fontWeight:700, color:'#888', textTransform:'uppercase', borderBottom:'1px solid #eee' }}>{h}</th>
                           ))}
                         </tr>
@@ -404,6 +403,7 @@ export default function AdminProduits() {
                               onMouseLeave={e => (e.currentTarget.style.background='')}>
                               <td style={{ padding:'9px 14px', borderBottom:'1px solid #f5f5f5', fontWeight:700, color:'#1A2332' }}>{mag?.nom}</td>
                               <td style={{ padding:'9px 14px', borderBottom:'1px solid #f5f5f5', color:'#666' }}>📍 {mag?.ville}{mag?.quartier?` · ${mag.quartier}`:''}</td>
+                              <td style={{ padding:'9px 14px', borderBottom:'1px solid #f5f5f5', fontWeight:700, color:'#C0392B' }}>{s.prix_local ? Number(s.prix_local).toLocaleString('fr-FR')+' FCFA' : '—'}</td>
                               <td style={{ padding:'9px 14px', borderBottom:'1px solid #f5f5f5' }}>
                                 <a href={`tel:${mag?.telephone}`} style={{ color:'#C0392B', textDecoration:'none', fontWeight:600 }}>{mag?.telephone}</a>
                               </td>

@@ -41,6 +41,7 @@ export default function AdminCommandes() {
   const [statutF, setStatutF] = useState('')
   const [q, setQ] = useState('')
   const [detail, setDetail] = useState<any>(null)
+  const [sousCmds, setSousCmds] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
   const [succes, setSucces] = useState('')
   const PER = 25
@@ -71,6 +72,17 @@ export default function AdminCommandes() {
     setSaving(false)
     setSucces('✓ Statut mis à jour')
     setTimeout(()=>setSucces(''),2000)
+  }
+
+  const ouvrir = async (c: any) => {
+    setDetail(c); setSousCmds([])
+    const sel = encodeURIComponent('*,partenaires_magasins(nom,ville,quartier,telephone),commande_lignes(*)')
+    const data = await api(`sous_commandes?commande_id=eq.${c.id}&select=${sel}&order=numero.asc`)
+    setSousCmds(Array.isArray(data) ? data : [])
+  }
+
+  const MODE_CFG: Record<string,{label:string,bg:string,c:string}> = {
+    retrait:{label:'🏬 Retrait',bg:'#e3f2fd',c:'#1565c0'}, livraison:{label:'🚚 Livraison',bg:'#f3e5f5',c:'#6a1b9a'},
   }
 
   const nbPages = Math.ceil(total/PER)
@@ -138,7 +150,7 @@ export default function AdminCommandes() {
           : commandes.map(c => {
             const cfg = statutCfg(c.statut)
             return (
-              <div key={c.id} onClick={()=>setDetail(c)}
+              <div key={c.id} onClick={()=>ouvrir(c)}
                 style={{ padding:'12px 16px', borderBottom:'1px solid #f5f5f5', cursor:'pointer', background:detail?.id===c.id?'#fff8f7':'#fff', borderLeft:detail?.id===c.id?'3px solid #C0392B':'3px solid transparent' }}
                 onMouseEnter={e=>{if(detail?.id!==c.id)(e.currentTarget as HTMLElement).style.background='#fafafa'}}
                 onMouseLeave={e=>{if(detail?.id!==c.id)(e.currentTarget as HTMLElement).style.background='#fff'}}>
@@ -227,23 +239,60 @@ export default function AdminCommandes() {
               ))}
             </div>
 
-            {/* Articles */}
-            <div style={{ background:'#fff', borderRadius:12, border:'1px solid #e8e8e8', overflow:'hidden', marginBottom:12 }}>
-              <div style={{ padding:'12px 16px', borderBottom:'1px solid #f0f0f0', fontWeight:700, fontSize:14 }}>🛍 Articles commandés</div>
-              {(detail.articles||[]).map((a:any,i:number) => (
-                <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 16px', borderBottom:'1px solid #f5f5f5' }}>
-                  <div>
-                    <div style={{ fontWeight:700, fontSize:13, color:'#1A2332' }}>{a.nom}</div>
-                    <div style={{ fontSize:11, color:'#999' }}>×{a.quantite} {a.unite}</div>
-                  </div>
-                  <div style={{ fontWeight:800, color:'#C0392B' }}>{fmtPrix(a.prix * a.quantite)}</div>
+            {/* Articles regroupés par magasin (sous-commandes) */}
+            {sousCmds.length > 0 ? (
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontWeight:700, fontSize:14, marginBottom:8 }}>🏪 Détail par magasin</div>
+                {sousCmds.map((sc:any) => {
+                  const mag = sc.partenaires_magasins
+                  const mode = MODE_CFG[sc.mode] || MODE_CFG.retrait
+                  return (
+                    <div key={sc.id} style={{ background:'#fff', borderRadius:12, border:'1px solid #e8e8e8', overflow:'hidden', marginBottom:10 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', background:'#f9f9f7', borderBottom:'1px solid #f0f0f0' }}>
+                        <span style={{ fontWeight:700, fontSize:13, color:'#1A2332' }}>{mag?.nom || 'BatiShop (direct)'}</span>
+                        {mag?.ville && <span style={{ fontSize:12, color:'#999' }}>📍 {mag.ville}</span>}
+                        <span style={{ background:mode.bg, color:mode.c, borderRadius:20, padding:'2px 9px', fontSize:11, fontWeight:700 }}>{mode.label}</span>
+                        <span style={{ marginLeft:'auto', fontSize:11, color:'#bbb' }}>{sc.numero}</span>
+                      </div>
+                      {(sc.commande_lignes||[]).map((l:any) => (
+                        <div key={l.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 16px', borderBottom:'1px solid #f5f5f5' }}>
+                          <div>
+                            <div style={{ fontWeight:600, fontSize:13, color:'#1A2332' }}>{l.nom}</div>
+                            <div style={{ fontSize:11, color:'#999' }}>×{l.quantite} {l.unite} · {fmtPrix(l.prix_unitaire)}</div>
+                          </div>
+                          <div style={{ fontWeight:700, color:'#C0392B' }}>{fmtPrix(l.sous_total)}</div>
+                        </div>
+                      ))}
+                      <div style={{ display:'flex', justifyContent:'space-between', padding:'9px 16px', fontSize:13 }}>
+                        <span style={{ color:'#888' }}>Sous-total{sc.frais_livraison>0?` + livraison ${fmtPrix(sc.frais_livraison)}`:''}</span>
+                        <span style={{ fontWeight:800, color:'#1A2332' }}>{fmtPrix(sc.total)}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+                <div style={{ display:'flex', justifyContent:'space-between', padding:'12px 16px', background:'#1A2332', color:'#fff', borderRadius:12 }}>
+                  <span style={{ fontWeight:700 }}>TOTAL COMMANDE</span>
+                  <span style={{ fontWeight:800, fontSize:16, color:'#D4A853' }}>{fmtPrix(detail.total)}</span>
                 </div>
-              ))}
-              <div style={{ display:'flex', justifyContent:'space-between', padding:'12px 16px', background:'#1A2332', color:'#fff' }}>
-                <span style={{ fontWeight:700 }}>TOTAL</span>
-                <span style={{ fontWeight:800, fontSize:16, color:'#D4A853' }}>{fmtPrix(detail.total)}</span>
               </div>
-            </div>
+            ) : (
+              <div style={{ background:'#fff', borderRadius:12, border:'1px solid #e8e8e8', overflow:'hidden', marginBottom:12 }}>
+                <div style={{ padding:'12px 16px', borderBottom:'1px solid #f0f0f0', fontWeight:700, fontSize:14 }}>🛍 Articles commandés</div>
+                {(detail.articles||[]).map((a:any,i:number) => (
+                  <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 16px', borderBottom:'1px solid #f5f5f5' }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:13, color:'#1A2332' }}>{a.nom}{a.partenaire_nom?` · ${a.partenaire_nom}`:''}</div>
+                      <div style={{ fontSize:11, color:'#999' }}>×{a.quantite} {a.unite}</div>
+                    </div>
+                    <div style={{ fontWeight:800, color:'#C0392B' }}>{fmtPrix(a.prix * a.quantite)}</div>
+                  </div>
+                ))}
+                <div style={{ display:'flex', justifyContent:'space-between', padding:'12px 16px', background:'#1A2332', color:'#fff' }}>
+                  <span style={{ fontWeight:700 }}>TOTAL</span>
+                  <span style={{ fontWeight:800, fontSize:16, color:'#D4A853' }}>{fmtPrix(detail.total)}</span>
+                </div>
+              </div>
+            )}
 
             {/* Actions statut */}
             <div style={{ background:'#fff', borderRadius:12, border:'1px solid #e8e8e8', padding:16 }}>
