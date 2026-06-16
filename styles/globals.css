@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-beton text-acier font-sans;
+  }
+  h1, h2, h3 {
+    @apply font-condensed;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brique text-white px-5 py-2.5 rounded font-semibold text-sm hover:bg-brique-dark transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-acier text-white px-5 py-2.5 rounded font-semibold text-sm hover:bg-acier-light transition-colors;
+  }
+  .btn-outline {
+    @apply border border-brique text-brique px-5 py-2.5 rounded font-semibold text-sm hover:bg-brique hover:text-white transition-colors;
+  }
+  .card {
+    @apply bg-white rounded-lg border border-gray-100 shadow-sm;
+  }
+  .badge-nouveau  { @apply bg-green-100 text-green-800 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide; }
+  .badge-promo    { @apply bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide; }
+  .badge-solaire  { @apply bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide; }
+  .input-field {
+    @apply w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-brique;
+  }
+}
