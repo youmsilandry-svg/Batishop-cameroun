@@ -29,7 +29,7 @@ const fmtPrix = (n:any) => (n===null||n===undefined)?'—':Number(n).toLocaleStr
 const fmtDate = (d:string) => d?new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}):'—'
 const phonesArr = (s:string) => s.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean)
 
-const BOUTIQUE_VIDE = { nom:'', ville:'', quartier:'', adresse:'', telephones:'', horaires:'' }
+const BOUTIQUE_VIDE = { nom:'', ville:'', quartier:'', adresse:'', telephones:'', horaires:'', latitude:'', longitude:'' }
 
 export default function AdminPartenaires() {
   const [auth, setAuth] = useState(false)
@@ -44,6 +44,7 @@ export default function AdminPartenaires() {
   const [stock, setStock] = useState<any[]>([])
   const [uid, setUid] = useState('')
   const [msg, setMsg] = useState('')
+  const [coords, setCoords] = useState<Record<string, { lat: string; lng: string }>>({})
   const [nouvelle, setNouvelle] = useState<any|null>(null)  // formulaire ajout boutique
 
   useEffect(()=>{ if(typeof window!=='undefined'&&localStorage.getItem('batishop_admin_auth')==='1') setAuth(true) },[])
@@ -96,6 +97,26 @@ export default function AdminPartenaires() {
     setBoutiques(prev => prev.map(x=>x.id===b.id?{...x,actif}:x))
   }
 
+  const coordDe = (b:any, f:'lat'|'lng') => coords[b.id]?.[f] ?? (f==='lat' ? (b.latitude ?? '') : (b.longitude ?? ''))
+  const setCoord = (b:any, f:'lat'|'lng', v:string) =>
+    setCoords(c => ({ ...c, [b.id]: { lat: coordDe(b,'lat'), lng: coordDe(b,'lng'), [f]: v } }))
+  const maPositionBoutique = (b:any) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) { alert('Géolocalisation non supportée'); return }
+    navigator.geolocation.getCurrentPosition(
+      p => setCoords(c => ({ ...c, [b.id]: { lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) } })),
+      () => alert('Position refusée ou indisponible'),
+      { enableHighAccuracy: true, timeout: 8000 },
+    )
+  }
+  const sauverPosition = async (b:any) => {
+    const lat = parseFloat(String(coordDe(b,'lat'))), lng = parseFloat(String(coordDe(b,'lng')))
+    const body = { latitude: isNaN(lat) ? null : lat, longitude: isNaN(lng) ? null : lng }
+    await api(`partenaires_magasins?id=eq.${b.id}`, { method:'PATCH', body: JSON.stringify(body) })
+    setBoutiques(prev => prev.map(x=>x.id===b.id?{...x,...body}:x))
+    setCoords(c => { const n={...c}; delete n[b.id]; return n })
+    setMsg('✓ Position enregistrée'); setTimeout(()=>setMsg(''), 2500)
+  }
+
   const lierCompte = async (e:any) => {
     if(!uid.trim()){ setMsg('Colle d’abord l’UID Supabase.'); return }
     const u = uid.trim()
@@ -107,9 +128,19 @@ export default function AdminPartenaires() {
     setMsg('✓ Compte lié à l’entreprise et à ses boutiques'); setTimeout(()=>setMsg(''),3500)
   }
 
+  const maPosition = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) { alert('Géolocalisation non supportée par ce navigateur'); return }
+    navigator.geolocation.getCurrentPosition(
+      p => setNouvelle((n:any) => ({ ...n, latitude: p.coords.latitude.toFixed(6), longitude: p.coords.longitude.toFixed(6) })),
+      () => alert('Position refusée ou indisponible'),
+      { enableHighAccuracy: true, timeout: 8000 },
+    )
+  }
+
   const ajouterBoutique = async (e:any) => {
     if(!nouvelle.ville || !nouvelle.quartier){ alert('Ville et quartier obligatoires'); return }
     const tels = phonesArr(nouvelle.telephones)
+    const lat = parseFloat(nouvelle.latitude), lng = parseFloat(nouvelle.longitude)
     const body = {
       entreprise_id: e.id,
       user_id: e.user_id || null,
@@ -118,6 +149,7 @@ export default function AdminPartenaires() {
       adresse: nouvelle.adresse.trim() || null,
       telephone: tels[0] || null, telephones: tels.length?tels:null,
       horaires: nouvelle.horaires.trim() || null,
+      latitude: isNaN(lat) ? null : lat, longitude: isNaN(lng) ? null : lng,
       actif: e.statut==='actif', statut: e.statut,
     }
     const r = await api('partenaires_magasins', { method:'POST', body: JSON.stringify(body) })
@@ -256,6 +288,22 @@ export default function AdminPartenaires() {
                       ))}
                     </div>
                   )}
+                  {/* Position GPS */}
+                  <div style={{marginTop:12,paddingTop:12,borderTop:'1px dashed #eee'}}>
+                    <div style={{fontSize:11,fontWeight:700,color:'#888',textTransform:'uppercase',marginBottom:6}}>
+                      📍 Position {(b.latitude!=null&&b.longitude!=null)?<span style={{color:'#1b5e20'}}>· définie</span>:<span style={{color:'#e65100'}}>· manquante</span>}
+                    </div>
+                    <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+                      <input value={coordDe(b,'lat')} onChange={e=>setCoord(b,'lat',e.target.value)} placeholder="Latitude (4.0489)" style={{...S.inp,width:150}}/>
+                      <input value={coordDe(b,'lng')} onChange={e=>setCoord(b,'lng',e.target.value)} placeholder="Longitude (9.7020)" style={{...S.inp,width:150}}/>
+                      <button onClick={()=>maPositionBoutique(b)} style={S.btn('#1A2332')}>📍 Ma position</button>
+                      <button onClick={()=>sauverPosition(b)} style={S.btn('#1b5e20')}>Enregistrer</button>
+                      {b.latitude!=null&&b.longitude!=null&&(
+                        <a href={`https://maps.google.com/?q=${b.latitude},${b.longitude}`} target="_blank" rel="noopener" style={{fontSize:12,color:'#C0392B',textDecoration:'none',fontWeight:600}}>Carte →</a>
+                      )}
+                    </div>
+                    <p style={{fontSize:11,color:'#aaa',margin:'6px 0 0'}}>Astuce : sur Google Maps, clic droit sur le lieu → cliquer sur les coordonnées pour les copier, puis coller ici.</p>
+                  </div>
                 </div>
               )})}
 
@@ -272,6 +320,12 @@ export default function AdminPartenaires() {
                     <input placeholder="Téléphones (séparés par virgule)" value={nouvelle.telephones} onChange={e=>setNouvelle({...nouvelle,telephones:e.target.value})} style={{...S.inp,gridColumn:'1 / -1'}}/>
                     <input placeholder="Horaires" value={nouvelle.horaires} onChange={e=>setNouvelle({...nouvelle,horaires:e.target.value})} style={S.inp}/>
                     <input placeholder="Nom de la boutique (optionnel)" value={nouvelle.nom} onChange={e=>setNouvelle({...nouvelle,nom:e.target.value})} style={S.inp}/>
+                    <input placeholder="Latitude (ex: 4.0489)" value={nouvelle.latitude} onChange={e=>setNouvelle({...nouvelle,latitude:e.target.value})} style={S.inp}/>
+                    <input placeholder="Longitude (ex: 9.7020)" value={nouvelle.longitude} onChange={e=>setNouvelle({...nouvelle,longitude:e.target.value})} style={S.inp}/>
+                  </div>
+                  <div style={{ fontSize:11, color:'#888', marginBottom:8, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                    <button type="button" onClick={maPosition} style={S.btn('#fff','#1A2332')}>📍 Ma position</button>
+                    <span>ou colle les coordonnées depuis Google Maps (clic droit sur le lieu → « Plus/coordonnées »). Sert au tri par distance côté client.</span>
                   </div>
                   <div style={{display:'flex',gap:8}}>
                     <button style={S.btn()} onClick={()=>ajouterBoutique(detail)}>Enregistrer</button>
