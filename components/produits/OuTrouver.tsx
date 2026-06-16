@@ -126,19 +126,28 @@ export function OuTrouver({ produit }: { produit: Produit }) {
 
       <div className="p-5">
         {/* BatiShop — toujours commandable */}
-        <div className="flex items-center gap-3 p-3 bg-brique/5 border border-brique/30 rounded-xl mb-3">
-          <div className="w-10 h-10 rounded-full bg-brique flex items-center justify-center shrink-0"><Package size={18} className="text-white"/></div>
-          <div className="flex-1 min-w-0">
-            <div className="font-bold text-sm text-acier">BatiShop — Livraison à domicile</div>
-            <div className="text-xs text-gray-500">Commande en ligne · livraison à {ville}{prixMoyen?.nb_partenaires > 0 && <> · prix moyen sur {prixMoyen.nb_partenaires} boutique{prixMoyen.nb_partenaires > 1 ? 's' : ''}</>}</div>
+        <div className="p-3 bg-brique/5 border border-brique/30 rounded-xl mb-3">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-brique flex items-center justify-center shrink-0"><Package size={16} className="text-white"/></div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-sm text-acier">BatiShop — Livraison à domicile</div>
+              <div className="text-xs text-gray-500">Commande en ligne · livraison à {ville}{prixMoyen?.nb_partenaires > 0 && <> · prix moyen sur {prixMoyen.nb_partenaires} boutique{prixMoyen.nb_partenaires > 1 ? 's' : ''}</>}</div>
+            </div>
+            <div className="text-right shrink-0">
+              <div className="font-condensed font-bold text-lg text-brique">{formatPrix(prixBatishop)}</div>
+              <div className="text-xs text-gray-400">/ {produit.unite}</div>
+            </div>
           </div>
-          <div className="text-right shrink-0 mr-2">
-            <div className="font-condensed font-bold text-lg text-brique">{formatPrix(prixBatishop)}</div>
-            <div className="text-xs text-gray-400">/ {produit.unite}</div>
+          <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
+            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
+              <button onClick={() => setQte('batishop', qteDe('batishop') - 1, 999)} className="px-2 py-1 hover:bg-beton text-acier"><Minus size={13}/></button>
+              <span className="px-3 py-1 text-sm font-medium border-x">{qteDe('batishop')}</span>
+              <button onClick={() => setQte('batishop', qteDe('batishop') + 1, 999)} className="px-2 py-1 hover:bg-beton text-acier"><Plus size={13}/></button>
+            </div>
+            <button onClick={ajouterBatishop} className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${ajoute === 'batishop' ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
+              {ajoute === 'batishop' ? <><Check size={15}/> Ajouté</> : <><ShoppingCart size={15}/> Ajouter au panier</>}
+            </button>
           </div>
-          <button onClick={ajouterBatishop} className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors shrink-0 ${ajoute === 'batishop' ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
-            {ajoute === 'batishop' ? <><Check size={15}/> Ajouté</> : <><ShoppingCart size={15}/> Commander</>}
-          </button>
         </div>
 
         {loading ? (
