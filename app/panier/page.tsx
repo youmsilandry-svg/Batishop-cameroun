@@ -54,7 +54,9 @@ export default function PagePanier() {
                         <p className="text-xs text-gray-400 mb-2">{formatPrix(a.prix_unitaire)} / {a.produit.unite}</p>
                         <div className="flex items-center border rounded overflow-hidden w-fit">
                           <button onClick={() => changerQuantite(cle, a.quantite - 1)} className="px-2 py-1 hover:bg-beton text-acier"><Minus size={14}/></button>
-                          <span className="px-3 py-1 text-sm font-medium border-x">{a.quantite}</span>
+                          <input type="number" min={1} value={a.quantite}
+                            onChange={e => changerQuantite(cle, e.target.value === '' ? 1 : Math.max(1, parseInt(e.target.value) || 1))}
+                            className="w-14 text-center py-1 text-sm font-medium border-x focus:outline-none" style={{ MozAppearance: 'textfield' }}/>
                           <button onClick={() => changerQuantite(cle, a.quantite + 1)} className="px-2 py-1 hover:bg-beton text-acier"><Plus size={14}/></button>
                         </div>
                       </div>
