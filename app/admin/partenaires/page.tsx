@@ -97,6 +97,24 @@ export default function AdminPartenaires() {
     setBoutiques(prev => prev.map(x=>x.id===b.id?{...x,actif}:x))
   }
 
+  const supprimerBoutique = async (b:any) => {
+    // Garde-fou : on ne supprime pas une boutique qui a des commandes (historique)
+    const cmd = await api(`sous_commandes?point_vente_id=eq.${b.id}&select=id&limit=1`)
+    if (Array.isArray(cmd) && cmd.length > 0) {
+      alert('Cette boutique a déjà reçu des commandes : elle ne peut pas être supprimée (l’historique serait perdu). Masquez-la plutôt avec « Masquée ».')
+      return
+    }
+    if (!confirm(`Supprimer définitivement la boutique « ${b.nom || detail?.nom} » (${b.ville}) et ses stocks ? Cette action est irréversible.`)) return
+    // Supprimer d'abord les stocks rattachés, puis la boutique
+    await api(`stocks_partenaires?partenaire_id=eq.${b.id}`, { method:'DELETE', headers:{ 'Prefer':'return=minimal' } })
+    const res = await fetch(`${BASE}/rest/v1/partenaires_magasins?id=eq.${b.id}`, {
+      method:'DELETE', headers:{ 'apikey':KEY, 'Authorization':`Bearer ${KEY}` },
+    })
+    if (!res.ok) { alert('Échec de la suppression.'); return }
+    setBoutiques(prev => prev.filter(x => x.id !== b.id))
+    setCounts(c => ({ ...c, [detail.id]: Math.max(0, (c[detail.id]||1) - 1) }))
+  }
+
   const coordDe = (b:any, f:'lat'|'lng') => coords[b.id]?.[f] ?? (f==='lat' ? (b.latitude ?? '') : (b.longitude ?? ''))
   const setCoord = (b:any, f:'lat'|'lng', v:string) =>
     setCoords(c => ({ ...c, [b.id]: { lat: coordDe(b,'lat'), lng: coordDe(b,'lng'), [f]: v } }))
@@ -274,9 +292,12 @@ export default function AdminPartenaires() {
                       <div style={{fontSize:12,color:'#888',marginTop:2}}>📍 {b.ville} · {b.quartier}{b.adresse?` · ${b.adresse}`:''}</div>
                       {b.horaires && <div style={{fontSize:12,color:'#aaa',marginTop:2}}>🕒 {b.horaires}</div>}
                     </div>
-                    <button onClick={()=>toggleBoutique(b)} style={S.btn(b.actif?'#e8f5e9':'#f0f0f0', b.actif?'#1b5e20':'#888')}>
-                      {b.actif?'✓ Visible':'Masquée'}
-                    </button>
+                    <div style={{display:'flex',gap:6,flexShrink:0}}>
+                      <button onClick={()=>toggleBoutique(b)} style={S.btn(b.actif?'#e8f5e9':'#f0f0f0', b.actif?'#1b5e20':'#888')}>
+                        {b.actif?'✓ Visible':'Masquée'}
+                      </button>
+                      <button onClick={()=>supprimerBoutique(b)} style={S.btn('#fff','#b71c1c')}>🗑 Supprimer</button>
+                    </div>
                   </div>
                   {tels.length>0&&(
                     <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:10}}>

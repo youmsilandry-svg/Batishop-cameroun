@@ -141,7 +141,9 @@ export function OuTrouver({ produit }: { produit: Produit }) {
           <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
               <button onClick={() => setQte('batishop', qteDe('batishop') - 1, 999)} className="px-2 py-1 hover:bg-beton text-acier"><Minus size={13}/></button>
-              <span className="px-3 py-1 text-sm font-medium border-x">{qteDe('batishop')}</span>
+              <input type="number" min={1} max={999} value={qteDe('batishop')}
+                onChange={e => setQte('batishop', e.target.value === '' ? 1 : parseInt(e.target.value) || 1, 999)}
+                className="w-14 text-center py-1 text-sm font-medium border-x focus:outline-none" style={{ MozAppearance: 'textfield' }}/>
               <button onClick={() => setQte('batishop', qteDe('batishop') + 1, 999)} className="px-2 py-1 hover:bg-beton text-acier"><Plus size={13}/></button>
             </div>
             <button onClick={ajouterBatishop} className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${ajoute === 'batishop' ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
@@ -182,7 +184,9 @@ export function OuTrouver({ produit }: { produit: Produit }) {
                     <div className="flex items-center gap-2">
                       <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
                         <button onClick={() => setQte(mag.id, qteDe(mag.id) - 1, s.quantite)} className="px-2 py-1 hover:bg-beton text-acier"><Minus size={13}/></button>
-                        <span className="px-3 py-1 text-sm font-medium border-x">{qteDe(mag.id)}</span>
+                        <input type="number" min={1} max={s.quantite} value={qteDe(mag.id)}
+                          onChange={e => setQte(mag.id, e.target.value === '' ? 1 : parseInt(e.target.value) || 1, s.quantite)}
+                          className="w-14 text-center py-1 text-sm font-medium border-x focus:outline-none" style={{ MozAppearance: 'textfield' }}/>
                         <button onClick={() => setQte(mag.id, qteDe(mag.id) + 1, s.quantite)} className="px-2 py-1 hover:bg-beton text-acier"><Plus size={13}/></button>
                       </div>
                       <a href={`tel:${mag.telephone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-brique"><Phone size={12}/> Appeler</a>
