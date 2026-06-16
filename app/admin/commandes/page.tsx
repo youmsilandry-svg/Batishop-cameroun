@@ -67,6 +67,10 @@ export default function AdminCommandes() {
   const changerStatut = async (id: string, statut: string) => {
     setSaving(true)
     await api(`commandes?id=eq.${id}`, { method:'PATCH', body:JSON.stringify({ statut }) })
+    if (statut === 'annulee') {
+      await api(`sous_commandes?commande_id=eq.${id}`, { method:'PATCH', body:JSON.stringify({ statut:'annulee' }) })
+      setSousCmds(prev => prev.map(sc => ({ ...sc, statut:'annulee' })))
+    }
     setCommandes(prev => prev.map(c => c.id===id ? {...c, statut} : c))
     setDetail((d:any) => d?.id===id ? {...d, statut} : d)
     setSaving(false)

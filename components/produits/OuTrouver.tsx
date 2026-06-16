@@ -80,12 +80,14 @@ export function OuTrouver({ produit }: { produit: Produit }) {
   }, [partenaires, pos, tri])
 
   const ajouter = (s: any) => {
+    if (!s.prix_local || s.prix_local <= 0) return
     const mag = s.partenaires_magasins
     ajouterLignePanier(produit, { id: mag.id, nom: mag.nom, ville: mag.ville, prix_local: s.prix_local, livre: mag.livre, frais_livraison_base: mag.frais_livraison_base }, qteDe(mag.id))
     setAjoute(mag.id); setTimeout(() => setAjoute(''), 1800)
   }
   const prixBatishop = moyenne || produit.prix
   const ajouterBatishop = () => {
+    if (!prixBatishop || prixBatishop <= 0) return
     ajouterLignePanier(produit, { id: 'batishop', nom: 'BatiShop', ville, prix_local: prixBatishop, livre: true, frais_livraison_base: 0 }, qteDe('batishop'))
     setAjoute('batishop'); setTimeout(() => setAjoute(''), 1800)
   }
@@ -159,6 +161,7 @@ export function OuTrouver({ produit }: { produit: Produit }) {
             {liste.map((s: any) => {
               const mag = s.partenaires_magasins
               const moinsCher = moyenne > 0 && s.prix_local < moyenne
+              const sansPrix = !s.prix_local || s.prix_local <= 0
               return (
                 <div key={mag.id} className={`p-3 rounded-xl border transition-colors ${s._meilleurPrix ? 'bg-green-50 border-green-300' : 'bg-beton border-transparent hover:bg-gray-100'}`}>
                   <div className="flex items-start gap-3">
@@ -176,8 +179,14 @@ export function OuTrouver({ produit }: { produit: Produit }) {
                       {mag.horaires && <p className="text-xs text-gray-400 flex items-center gap-1"><Clock size={10}/> {mag.horaires}</p>}
                     </div>
                     <div className="text-right shrink-0">
-                      <div className={`font-condensed font-bold text-lg ${moinsCher ? 'text-green-700' : 'text-brique'}`}>{formatPrix(s.prix_local)}</div>
-                      <div className="text-xs text-gray-400">/ {produit.unite}</div>
+                      {sansPrix ? (
+                        <div className="text-xs text-gray-400 font-medium">Prix non<br/>communiqué</div>
+                      ) : (
+                        <>
+                          <div className={`font-condensed font-bold text-lg ${moinsCher ? 'text-green-700' : 'text-brique'}`}>{formatPrix(s.prix_local)}</div>
+                          <div className="text-xs text-gray-400">/ {produit.unite}</div>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
@@ -192,9 +201,15 @@ export function OuTrouver({ produit }: { produit: Produit }) {
                       <a href={`tel:${mag.telephone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-brique"><Phone size={12}/> Appeler</a>
                       {mag.latitude && <a href={`https://maps.google.com/?q=${mag.latitude},${mag.longitude}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-gray-500 hover:text-brique"><Navigation size={12}/> GPS</a>}
                     </div>
-                    <button onClick={() => ajouter(s)} className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${ajoute === mag.id ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
-                      {ajoute === mag.id ? <><Check size={15}/> Ajouté</> : <><ShoppingCart size={15}/> Ajouter</>}
-                    </button>
+                    {sansPrix ? (
+                      <a href={`tel:${mag.telephone}`} className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200">
+                        <Phone size={15}/> Appeler pour le prix
+                      </a>
+                    ) : (
+                      <button onClick={() => ajouter(s)} className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${ajoute === mag.id ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
+                        {ajoute === mag.id ? <><Check size={15}/> Ajouté</> : <><ShoppingCart size={15}/> Ajouter</>}
+                      </button>
+                    )}
                   </div>
                 </div>
               )
