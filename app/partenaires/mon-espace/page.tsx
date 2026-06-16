@@ -24,6 +24,8 @@ export default function EspacePartenaire() {
   const router = useRouter()
   const [token, setToken] = useState('')
   const [user, setUser] = useState<any>(null)
+  const [entreprise, setEntreprise] = useState<any>(null)
+  const [boutiques, setBoutiques] = useState<any[]>([])
   const [magasin, setMagasin] = useState<any>(null)
   const [produits, setProduits] = useState<any[]>([])
   const [stocks, setStocks] = useState<any[]>([])
@@ -46,8 +48,15 @@ export default function EspacePartenaire() {
     if (u) setUser(JSON.parse(u))
 
     async function charger() {
-      const mag = await apiAuth(`partenaires_magasins?user_id=eq.${JSON.parse(u||'{}').id}&select=*`, t!)
+      const uid = JSON.parse(u||'{}').id
+      // L'entreprise (statut, identité) — le compte gère toute l'enseigne
+      const ents = await apiAuth(`entreprises?user_id=eq.${uid}&select=*`, t!)
+      if (ents && ents.length) setEntreprise(ents[0])
+
+      // Toutes les boutiques rattachées à ce compte
+      const mag = await apiAuth(`partenaires_magasins?user_id=eq.${uid}&select=*&order=ville.asc`, t!)
       if (!mag || mag.length === 0) { router.push('/partenaires'); return }
+      setBoutiques(mag)
       const m = mag[0]
       setMagasin(m)
       setForm({ nom: m.nom, telephone: m.telephone, adresse: m.adresse, quartier: m.quartier, horaires: m.horaires, description: m.description })
@@ -56,7 +65,7 @@ export default function EspacePartenaire() {
       const prods = await apiAuth('produits?select=id,nom,categorie,reference,prix,unite&actif=eq.true&order=nom.asc', t!)
       setProduits(prods || [])
 
-      // Charger stocks existants du partenaire
+      // Charger stocks de la boutique sélectionnée
       const stks = await apiAuth(`stocks_partenaires?partenaire_id=eq.${m.id}&select=*`, t!)
       setStocks(stks || [])
 
@@ -75,6 +84,15 @@ export default function EspacePartenaire() {
     localStorage.removeItem('batishop_partenaire_token')
     localStorage.removeItem('batishop_partenaire_user')
     router.push('/partenaires/connexion')
+  }
+
+  // Changer de boutique : recharge les stocks de la boutique choisie
+  const choisirBoutique = async (b: any) => {
+    setMagasin(b)
+    setForm({ nom: b.nom, telephone: b.telephone, adresse: b.adresse, quartier: b.quartier, horaires: b.horaires, description: b.description })
+    setModifStocks({}); setModifPrix({}); setModeAjout(false)
+    const stks = await apiAuth(`stocks_partenaires?partenaire_id=eq.${b.id}&select=*`, token)
+    setStocks(stks || [])
   }
 
   const sauvegarderInfos = async (e: React.FormEvent) => {
@@ -162,13 +180,14 @@ export default function EspacePartenaire() {
     </div>
   )
 
-  if (magasin?.statut === 'suspendu' || magasin?.statut === 'exclu') return (
+  const statutEntreprise = entreprise?.statut || magasin?.statut
+  if (['suspendu','exclu','inactif','refuse'].includes(statutEntreprise)) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f3', fontFamily: 'system-ui,sans-serif' }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: 36, maxWidth: 440, textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>{magasin.statut === 'exclu' ? '🚫' : '⏸'}</div>
-        <h2 style={{ color: '#1A2332', marginBottom: 8 }}>Compte {magasin.statut === 'exclu' ? 'exclu' : 'suspendu'}</h2>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>{['exclu','refuse'].includes(statutEntreprise) ? '🚫' : '⏸'}</div>
+        <h2 style={{ color: '#1A2332', marginBottom: 8 }}>Compte {statutEntreprise === 'refuse' ? 'refusé' : statutEntreprise === 'exclu' ? 'exclu' : statutEntreprise === 'inactif' ? 'désactivé' : 'suspendu'}</h2>
         <div style={{ background: '#fce8e8', borderRadius: 10, padding: 14, marginBottom: 16, textAlign: 'left', fontSize: 13 }}>
-          <strong>Raison :</strong><br/>{magasin.raison_suspension || 'Non précisée'}
+          Votre compte n’est pas actif sur BatiShop. Contactez-nous pour en savoir plus.
         </div>
         <a href="tel:+237600000000" style={{ display: 'inline-block', padding: '10px 24px', background: '#C0392B', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 700 }}>📞 Contacter BatiShop</a>
       </div>
@@ -182,9 +201,21 @@ export default function EspacePartenaire() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 38, height: 38, background: '#C0392B', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🏪</div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>{magasin?.nom}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>{magasin?.ville} · {magasin?.statut === 'actif' ? '✓ Actif sur BatiShop' : magasin?.statut}</div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>{entreprise?.nom || magasin?.nom}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>{magasin?.ville} · {statutEntreprise === 'actif' ? '✓ Actif sur BatiShop' : statutEntreprise}</div>
           </div>
+          {boutiques.length > 1 && (
+            <select
+              value={magasin?.id || ''}
+              onChange={e => { const b = boutiques.find(x => x.id === e.target.value); if (b) choisirBoutique(b) }}
+              style={{ marginLeft: 8, padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.1)', color: '#fff', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
+              {boutiques.map(b => (
+                <option key={b.id} value={b.id} style={{ color: '#222' }}>
+                  {b.ville} — {b.quartier}{b.actif ? '' : ' (masquée)'}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <a href="/" style={{ color: 'rgba(255,255,255,.5)', fontSize: 12, textDecoration: 'none' }}>← Voir le site</a>
@@ -195,6 +226,12 @@ export default function EspacePartenaire() {
       <div style={S.main}>
         {succes && (
           <div style={{ background: '#e8f5e9', border: '1px solid #a5d6a7', color: '#1b5e20', padding: '10px 16px', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 600 }}>{succes}</div>
+        )}
+
+        {boutiques.length > 1 && (
+          <div style={{ background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730a3', padding: '8px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13 }}>
+            🏬 Vous gérez la boutique <strong>{magasin?.ville} — {magasin?.quartier}</strong>. Stocks et prix sont propres à cette boutique. Changez de boutique en haut à droite.
+          </div>
         )}
 
         {/* Onglets */}
