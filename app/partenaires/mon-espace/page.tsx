@@ -30,7 +30,10 @@ export default function EspacePartenaire() {
   const [produits, setProduits] = useState<any[]>([])
   const [stocks, setStocks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [onglet, setOnglet] = useState<'dashboard'|'stocks'|'infos'>('dashboard')
+  const [onglet, setOnglet] = useState<'dashboard'|'commandes'|'stocks'|'infos'>('dashboard')
+  const [commandes, setCommandes] = useState<any[]>([])
+  const [loadingCmd, setLoadingCmd] = useState(false)
+  const [majCmd, setMajCmd] = useState('')
   const [saving, setSaving] = useState(false)
   const [succes, setSucces] = useState('')
   const [form, setForm] = useState<any>({})
@@ -69,6 +72,11 @@ export default function EspacePartenaire() {
       const stks = await apiAuth(`stocks_partenaires?partenaire_id=eq.${m.id}&select=*`, t!)
       setStocks(stks || [])
 
+      // Charger les commandes (sous-commandes) de la boutique
+      const selC = encodeURIComponent('*,commandes(client_nom,client_telephone,client_adresse,client_ville,client_latitude,client_longitude),commande_lignes(*)')
+      const cmds = await apiAuth(`sous_commandes?point_vente_id=eq.${m.id}&select=${selC}&order=created_at.desc`, t!)
+      setCommandes(Array.isArray(cmds) ? cmds : [])
+
       // Charger les prix moyens du site (tous partenaires confondus)
       const moyennes = await apiAuth('prix_moyen_partenaires?select=produit_id,prix_moyen,nb_partenaires', t!)
       const mapMoy: Record<string, { prix_moyen: number; nb_partenaires: number }> = {}
@@ -93,7 +101,23 @@ export default function EspacePartenaire() {
     setModifStocks({}); setModifPrix({}); setModeAjout(false)
     const stks = await apiAuth(`stocks_partenaires?partenaire_id=eq.${b.id}&select=*`, token)
     setStocks(stks || [])
+    chargerCommandes(b.id)
   }
+
+  const chargerCommandes = async (bid: string) => {
+    setLoadingCmd(true)
+    const sel = encodeURIComponent('*,commandes(client_nom,client_telephone,client_adresse,client_ville,client_latitude,client_longitude),commande_lignes(*)')
+    const data = await apiAuth(`sous_commandes?point_vente_id=eq.${bid}&select=${sel}&order=created_at.desc`, token)
+    setCommandes(Array.isArray(data) ? data : [])
+    setLoadingCmd(false)
+  }
+
+  const changerStatutSC = async (sc: any, statut: string) => {
+    await apiAuth(`sous_commandes?id=eq.${sc.id}`, token, { method: 'PATCH', body: JSON.stringify({ statut }) })
+    setCommandes(prev => prev.map(x => x.id === sc.id ? { ...x, statut } : x))
+    setMajCmd('✓ Statut mis à jour'); setTimeout(() => setMajCmd(''), 2000)
+  }
+
 
   const maPosition = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) { alert('Géolocalisation non supportée par ce navigateur'); return }
@@ -174,6 +198,36 @@ export default function EspacePartenaire() {
 
   const produitsAffiches = modeAjout ? produitsAjoutables : mesProduits
 
+  const fmtFcfa = (n: number) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA'
+  const STATUT_SC: Record<string, { label: string; bg: string; c: string }> = {
+    en_attente:  { label: 'En attente',   bg: '#fff3e0', c: '#e65100' },
+    confirmee:   { label: 'Confirmée',    bg: '#e3f2fd', c: '#1565c0' },
+    prete:       { label: 'Prête',        bg: '#e8f5e9', c: '#1b5e20' },
+    en_livraison:{ label: 'En livraison', bg: '#f3e5f5', c: '#6a1b9a' },
+    livree:      { label: 'Livrée',       bg: '#e8f5e9', c: '#1b5e20' },
+    retiree:     { label: 'Retirée',      bg: '#e8f5e9', c: '#1b5e20' },
+    annulee:     { label: 'Annulée',      bg: '#ffebee', c: '#b71c1c' },
+  }
+  // Prochaines actions possibles selon le mode et le statut actuel
+  const actionsSC = (sc: any): { statut: string; label: string; couleur: string }[] => {
+    if (sc.statut === 'en_attente') return [
+      { statut: 'confirmee', label: '✓ Confirmer', couleur: '#1565c0' },
+      { statut: 'annulee', label: '✕ Refuser', couleur: '#b71c1c' },
+    ]
+    if (sc.statut === 'confirmee') return sc.mode === 'livraison'
+      ? [{ statut: 'en_livraison', label: '🚚 En livraison', couleur: '#6a1b9a' }, { statut: 'annulee', label: '✕ Annuler', couleur: '#b71c1c' }]
+      : [{ statut: 'prete', label: '📦 Prête pour retrait', couleur: '#1b5e20' }, { statut: 'annulee', label: '✕ Annuler', couleur: '#b71c1c' }]
+    if (sc.statut === 'prete') return [{ statut: 'retiree', label: '✓ Retirée par le client', couleur: '#1b5e20' }]
+    if (sc.statut === 'en_livraison') return [{ statut: 'livree', label: '✓ Livrée', couleur: '#1b5e20' }]
+    return []
+  }
+  const cmdActives = commandes.filter(c => !['annulee'].includes(c.statut))
+  const cmdEnCours = commandes.filter(c => ['en_attente','confirmee','prete','en_livraison'].includes(c.statut))
+  const caRealise = commandes.filter(c => ['livree','retiree'].includes(c.statut)).reduce((s, c) => s + (c.total || 0), 0)
+  const caEnCours = cmdEnCours.reduce((s, c) => s + (c.total || 0), 0)
+  const waClient = (tel: string) => `https://wa.me/237${String(tel || '').replace(/\D/g, '').replace(/^237/, '')}`
+
+
   const S: any = {
     page: { minHeight: '100vh', background: '#f5f5f3', fontFamily: 'system-ui,sans-serif', fontSize: 14 },
     header: { background: '#1A2332', color: '#fff', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
@@ -248,6 +302,10 @@ export default function EspacePartenaire() {
         {/* Onglets */}
         <div style={{ display: 'flex', gap: 2, background: '#fff', borderRadius: 10, padding: 4, marginBottom: 20, border: '1px solid #e8e8e8', width: 'fit-content' }}>
           <button style={S.tab(onglet === 'dashboard')} onClick={() => setOnglet('dashboard')}>📊 Tableau de bord</button>
+          <button style={S.tab(onglet === 'commandes')} onClick={() => setOnglet('commandes')}>
+            🧾 Commandes
+            {cmdEnCours.filter(c => c.statut === 'en_attente').length > 0 && <span style={{ background: '#C0392B', color: '#fff', borderRadius: 20, padding: '1px 7px', fontSize: 11, marginLeft: 6 }}>{cmdEnCours.filter(c => c.statut === 'en_attente').length}</span>}
+          </button>
           <button style={S.tab(onglet === 'stocks')} onClick={() => setOnglet('stocks')}>
             📦 Mes stocks
             {nbModifs > 0 && <span style={{ background: '#C0392B', color: '#fff', borderRadius: 20, padding: '1px 7px', fontSize: 11, marginLeft: 6 }}>{nbModifs}</span>}
@@ -286,6 +344,87 @@ export default function EspacePartenaire() {
                 <div style={{ fontWeight: 700, color: '#e65100', marginBottom: 6 }}>⚠️ Produits en rupture de stock</div>
                 <div style={{ fontSize: 12, color: '#bf360c', marginBottom: 10 }}>Ces produits sont marqués comme indisponibles chez vous :</div>
                 <button style={S.btn()} onClick={() => setOnglet('stocks')}>Mettre à jour mes stocks →</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* COMMANDES */}
+        {onglet === 'commandes' && (
+          <div>
+            {majCmd && <div style={{ background: '#e8f5e9', color: '#1b5e20', padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 13, fontWeight: 600 }}>{majCmd}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+              <div style={S.stat}><div style={{ fontWeight: 800, fontSize: 24, color: '#C0392B' }}>{cmdEnCours.length}</div><div style={{ fontSize: 12, color: '#888' }}>À traiter / en cours</div></div>
+              <div style={S.stat}><div style={{ fontWeight: 800, fontSize: 22, color: '#1b5e20' }}>{fmtFcfa(caRealise)}</div><div style={{ fontSize: 12, color: '#888' }}>CA réalisé (livré/retiré)</div></div>
+              <div style={S.stat}><div style={{ fontWeight: 800, fontSize: 22, color: '#1565c0' }}>{fmtFcfa(caEnCours)}</div><div style={{ fontSize: 12, color: '#888' }}>En cours</div></div>
+            </div>
+
+            {loadingCmd ? (
+              <div style={{ ...S.card, textAlign: 'center', color: '#999' }}>Chargement…</div>
+            ) : commandes.length === 0 ? (
+              <div style={{ ...S.card, textAlign: 'center', color: '#999', padding: 40 }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🧾</div>
+                <div style={{ fontWeight: 700, color: '#666' }}>Aucune commande pour cette boutique</div>
+                <div style={{ fontSize: 13, marginTop: 4 }}>Les commandes des clients apparaîtront ici dès qu'elles arrivent.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {commandes.map((sc: any) => {
+                  const st = STATUT_SC[sc.statut] || STATUT_SC.en_attente
+                  const cl = sc.commandes || {}
+                  const actions = actionsSC(sc)
+                  return (
+                    <div key={sc.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#f9f9f7', borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap' }}>
+                        <span style={{ background: sc.mode === 'livraison' ? '#f3e5f5' : '#e3f2fd', color: sc.mode === 'livraison' ? '#6a1b9a' : '#1565c0', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>
+                          {sc.mode === 'livraison' ? '🚚 Livraison' : '📦 Retrait'}
+                        </span>
+                        <span style={{ background: st.bg, color: st.c, borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>{st.label}</span>
+                        <span style={{ marginLeft: 'auto', fontWeight: 800, color: '#1A2332' }}>{fmtFcfa(sc.total)}</span>
+                      </div>
+
+                      {/* Client */}
+                      <div style={{ padding: '10px 16px', borderBottom: '1px solid #f5f5f5', fontSize: 13 }}>
+                        <div style={{ fontWeight: 700, color: '#1A2332' }}>{cl.client_nom || 'Client'}</div>
+                        <div style={{ color: '#888', display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 2 }}>
+                          <a href={`tel:${cl.client_telephone}`} style={{ color: '#1565c0', textDecoration: 'none' }}>📞 {cl.client_telephone}</a>
+                          <a href={waClient(cl.client_telephone)} target="_blank" rel="noopener" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 600 }}>WhatsApp</a>
+                          {sc.mode === 'livraison' && (cl.client_adresse || sc.adresse_livraison) && (
+                            <span>📍 {sc.adresse_livraison ? sc.adresse_livraison.split(' — 📍')[0] : `${cl.client_adresse}, ${cl.client_ville || ''}`}</span>
+                          )}
+                          {sc.mode === 'livraison' && cl.client_latitude && (
+                            <a href={`https://maps.google.com/?q=${cl.client_latitude},${cl.client_longitude}`} target="_blank" rel="noopener" style={{ color: '#C0392B', textDecoration: 'none', fontWeight: 600 }}>Carte GPS →</a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Lignes */}
+                      {(sc.commande_lignes || []).map((l: any) => (
+                        <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', borderBottom: '1px solid #f7f7f7', fontSize: 13 }}>
+                          <span style={{ color: '#333' }}>{l.nom} <span style={{ color: '#aaa' }}>×{l.quantite} {l.unite || ''}</span></span>
+                          <span style={{ fontWeight: 600, color: '#C0392B' }}>{fmtFcfa(l.sous_total)}</span>
+                        </div>
+                      ))}
+                      {sc.frais_livraison > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', fontSize: 12, color: '#888' }}>
+                          <span>Frais de livraison</span><span>{fmtFcfa(sc.frais_livraison)}</span>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      {actions.length > 0 && (
+                        <div style={{ display: 'flex', gap: 8, padding: '12px 16px', flexWrap: 'wrap', borderTop: '1px solid #f0f0f0' }}>
+                          {actions.map(a => (
+                            <button key={a.statut} onClick={() => changerStatutSC(sc, a.statut)}
+                              style={{ background: a.couleur, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                              {a.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
