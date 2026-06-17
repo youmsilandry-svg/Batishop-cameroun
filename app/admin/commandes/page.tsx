@@ -92,6 +92,51 @@ export default function AdminCommandes() {
   const nbPages = Math.ceil(total/PER)
   const fmtPrix = (n:number) => Number(n).toLocaleString('fr-FR') + ' FCFA'
   const fmtDate = (d:string) => new Date(d).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'})
+
+  const imprimer = () => {
+    if (!detail) return
+    const esc = (s:any) => String(s ?? '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'} as any)[c])
+    let corps = ''
+    if (sousCmds.length > 0) {
+      corps = sousCmds.map((sc:any) => {
+        const mag = sc.partenaires_magasins
+        const items = (sc.commande_lignes||[]).map((l:any) =>
+          `<tr><td style="padding:5px 10px">${esc(l.nom)}</td><td style="text-align:center">${l.quantite} ${esc(l.unite||'')}</td><td style="text-align:right;padding:5px 10px">${fmtPrix(l.prix_unitaire)}</td><td style="text-align:right;padding:5px 10px">${fmtPrix(l.sous_total)}</td></tr>`).join('')
+        const adr = sc.mode==='livraison' && sc.adresse_livraison ? `<div style="font-size:12px;color:#555;padding:4px 10px">🚚 Livraison : ${esc(sc.adresse_livraison)}</div>` : ''
+        return `<div style="margin:12px 0;border:1px solid #ddd;border-radius:8px;overflow:hidden">
+          <div style="background:#f5f5f5;padding:7px 10px;font-weight:bold">${esc(mag?.nom||'BatiShop (direct)')} — ${sc.mode==='livraison'?'Livraison':'Retrait'}${mag?.ville?' · '+esc(mag.ville):''}</div>
+          ${adr}
+          <table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#fafafa"><th style="text-align:left;padding:5px 10px">Produit</th><th>Qté</th><th style="text-align:right;padding:5px 10px">PU</th><th style="text-align:right;padding:5px 10px">Total</th></tr></thead><tbody>${items}</tbody></table>
+          <div style="text-align:right;padding:6px 10px;font-weight:bold">Sous-total : ${fmtPrix(sc.total)}</div>
+        </div>`
+      }).join('')
+    } else {
+      const rows = (detail.articles||[]).map((a:any) =>
+        `<tr><td style="padding:5px 10px">${esc(a.nom)}${a.partenaire_nom?' · '+esc(a.partenaire_nom):''}</td><td style="text-align:center">${a.quantite} ${esc(a.unite||'')}</td><td style="text-align:right;padding:5px 10px">${fmtPrix(a.prix*a.quantite)}</td></tr>`).join('')
+      corps = `<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#fafafa"><th style="text-align:left;padding:5px 10px">Produit</th><th>Qté</th><th style="text-align:right;padding:5px 10px">Total</th></tr></thead><tbody>${rows}</tbody></table>`
+    }
+    const gps = detail.client_latitude ? ` (GPS : ${detail.client_latitude}, ${detail.client_longitude})` : ''
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Commande ${esc(detail.numero)}</title></head>
+      <body style="font-family:Arial,sans-serif;color:#222;padding:24px;max-width:760px;margin:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #C0392B;padding-bottom:10px">
+          <div><div style="font-size:22px;font-weight:bold;color:#C0392B">BatiShop Cameroun</div><div style="font-size:12px;color:#777">Bon de commande</div></div>
+          <div style="text-align:right"><div style="font-weight:bold">${esc(detail.numero)}</div><div style="font-size:12px;color:#777">${fmtDate(detail.created_at)}</div></div>
+        </div>
+        <div style="margin:14px 0;font-size:13px;line-height:1.6">
+          <strong>Client :</strong> ${esc(detail.client_nom)} — ${esc(detail.client_telephone)}<br>
+          <strong>Ville :</strong> ${esc(detail.client_ville||'—')}<br>
+          <strong>Adresse :</strong> ${esc(detail.client_adresse||'—')}${gps}<br>
+          <strong>Paiement :</strong> ${esc((detail.paiement_methode||'').replace('_',' '))} · <strong>Statut :</strong> ${esc(detail.statut)}
+        </div>
+        ${corps}
+        <div style="text-align:right;font-size:18px;font-weight:bold;margin-top:14px;border-top:2px solid #1A2332;padding-top:10px">TOTAL : ${fmtPrix(detail.total)}</div>
+        <div style="margin-top:24px;font-size:11px;color:#999;text-align:center">Merci de votre confiance — BatiShop Cameroun</div>
+      </body></html>`
+    const w = window.open('', '_blank', 'width=820,height=900')
+    if (!w) { alert('Autorisez les fenêtres pop-up pour imprimer.'); return }
+    w.document.write(html); w.document.close(); w.focus()
+    setTimeout(() => w.print(), 400)
+  }
   const statutCfg = (s:string) => STATUTS.find(x=>x.id===s) || STATUTS[0]
 
   if (!auth) return (
@@ -243,6 +288,20 @@ export default function AdminCommandes() {
               ))}
             </div>
 
+            {/* Adresse de livraison (si livraison) */}
+            {(detail.client_adresse && detail.client_adresse !== '—') || detail.client_latitude ? (
+              <div style={{ background:'#f3e9f5', border:'1px solid #e1c8e8', borderRadius:10, padding:'12px 14px', marginBottom:12 }}>
+                <div style={{ fontSize:11, color:'#7b1fa2', textTransform:'uppercase', fontWeight:700, marginBottom:3 }}>🚚 Adresse de livraison</div>
+                <div style={{ fontWeight:700, color:'#1A2332' }}>{detail.client_adresse || '—'}{detail.client_ville ? `, ${detail.client_ville}` : ''}</div>
+                {detail.client_latitude && (
+                  <a href={`https://maps.google.com/?q=${detail.client_latitude},${detail.client_longitude}`} target="_blank" rel="noopener"
+                    style={{ display:'inline-block', marginTop:6, fontSize:13, color:'#C0392B', fontWeight:600, textDecoration:'none' }}>
+                    📍 Ouvrir la position GPS sur la carte →
+                  </a>
+                )}
+              </div>
+            ) : null}
+
             {/* Articles regroupés par magasin (sous-commandes) */}
             {sousCmds.length > 0 ? (
               <div style={{ marginBottom:12 }}>
@@ -258,6 +317,14 @@ export default function AdminCommandes() {
                         <span style={{ background:mode.bg, color:mode.c, borderRadius:20, padding:'2px 9px', fontSize:11, fontWeight:700 }}>{mode.label}</span>
                         <span style={{ marginLeft:'auto', fontSize:11, color:'#bbb' }}>{sc.numero}</span>
                       </div>
+                      {sc.mode==='livraison' && sc.adresse_livraison && (
+                        <div style={{ fontSize:12, color:'#6a1b9a', padding:'7px 16px', background:'#faf4fc', borderBottom:'1px solid #f0f0f0' }}>
+                          🚚 {sc.adresse_livraison.split(' — 📍')[0]}
+                          {sc.adresse_livraison.includes('http') && (
+                            <a href={sc.adresse_livraison.match(/https?:\/\/\S+/)?.[0]} target="_blank" rel="noopener" style={{ marginLeft:6, color:'#C0392B', fontWeight:600, textDecoration:'none' }}>📍 carte</a>
+                          )}
+                        </div>
+                      )}
                       {(sc.commande_lignes||[]).map((l:any) => (
                         <div key={l.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 16px', borderBottom:'1px solid #f5f5f5' }}>
                           <div>
@@ -317,6 +384,7 @@ export default function AdminCommandes() {
               </div>
               <div style={{ marginTop:12, display:'flex', gap:8 }}>
                 <a href={`tel:${detail.client_telephone}`} style={{ ...S.btn(), textDecoration:'none', fontSize:13 }}>📞 Appeler le client</a>
+                <button onClick={imprimer} style={{ ...S.btn('#1A2332'), fontSize:13 }}>🖨 Imprimer / PDF</button>
               </div>
             </div>
           </div>
