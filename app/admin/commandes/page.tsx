@@ -89,6 +89,19 @@ export default function AdminCommandes() {
     retrait:{label:'🏬 Retrait',bg:'#e3f2fd',c:'#1565c0'}, livraison:{label:'🚚 Livraison',bg:'#f3e5f5',c:'#6a1b9a'},
   }
 
+  const waPartenaire = (sc:any) => {
+    const mag = sc.partenaires_magasins
+    const items = (sc.commande_lignes||[]).map((l:any)=>`- ${l.nom} x${l.quantite} ${l.unite||''}`).join('\n')
+    const adr = sc.mode==='livraison'
+      ? `\nLivraison : ${(sc.adresse_livraison||detail?.client_adresse||'').split(' — 📍')[0]}`
+      : '\nMode : Retrait en magasin'
+    const txt = `Bonjour ${mag?.nom||''}, nouvelle commande BatiShop ${detail?.numero}.\n`
+      + `Client : ${detail?.client_nom} - ${detail?.client_telephone}${adr}\n\n`
+      + `Articles :\n${items}\n\nTotal magasin : ${fmtPrix(sc.total)}`
+    const tel = String(mag?.telephone||'').replace(/\D/g,'').replace(/^237/,'')
+    return `https://wa.me/237${tel}?text=${encodeURIComponent(txt)}`
+  }
+
   const nbPages = Math.ceil(total/PER)
   const fmtPrix = (n:number) => Number(n).toLocaleString('fr-FR') + ' FCFA'
   const fmtDate = (d:string) => new Date(d).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'})
@@ -316,6 +329,12 @@ export default function AdminCommandes() {
                         {mag?.ville && <span style={{ fontSize:12, color:'#999' }}>📍 {mag.ville}</span>}
                         <span style={{ background:mode.bg, color:mode.c, borderRadius:20, padding:'2px 9px', fontSize:11, fontWeight:700 }}>{mode.label}</span>
                         <span style={{ marginLeft:'auto', fontSize:11, color:'#bbb' }}>{sc.numero}</span>
+                        {mag?.telephone && (
+                          <a href={waPartenaire(sc)} target="_blank" rel="noopener"
+                            style={{ background:'#25D366', color:'#fff', borderRadius:8, padding:'4px 10px', fontSize:11, fontWeight:700, textDecoration:'none' }}>
+                            WhatsApp magasin
+                          </a>
+                        )}
                       </div>
                       {sc.mode==='livraison' && sc.adresse_livraison && (
                         <div style={{ fontSize:12, color:'#6a1b9a', padding:'7px 16px', background:'#faf4fc', borderBottom:'1px solid #f0f0f0' }}>
