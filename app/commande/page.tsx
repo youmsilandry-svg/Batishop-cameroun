@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Store, MapPin, Truck, Package } from 'lucide-react'
+import { Store, MapPin, Truck, Package, Crosshair, Navigation } from 'lucide-react'
 import { formatPrix, supabase, VILLES } from '../../lib/supabase'
 import { usePanier } from '../../lib/panier'
 
@@ -12,7 +12,18 @@ export default function PageCommande() {
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState('')
   const [modes, setModes] = useState<Record<string, 'retrait' | 'livraison'>>({})
-  const [form, setForm] = useState({ nom: '', telephone: '', email: '', ville: 'Douala', adresse: '', notes: '', paiement: 'reception' as 'reception' | 'en_ligne' })
+  const [form, setForm] = useState({ nom: '', telephone: '', email: '', ville: 'Douala', adresse: '', notes: '', paiement: 'reception' as 'reception' | 'en_ligne', latitude: '', longitude: '' })
+  const [geo, setGeo] = useState<'idle' | 'asking' | 'ok' | 'refused'>('idle')
+
+  const maPosition = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) { setGeo('refused'); return }
+    setGeo('asking')
+    navigator.geolocation.getCurrentPosition(
+      p => { setForm(f => ({ ...f, latitude: p.coords.latitude.toFixed(6), longitude: p.coords.longitude.toFixed(6) })); setGeo('ok') },
+      () => setGeo('refused'),
+      { enableHighAccuracy: true, timeout: 8000 },
+    )
+  }
 
   useEffect(() => { setMounted(true) }, [])
   if (!mounted) return null
@@ -42,10 +53,13 @@ export default function PageCommande() {
         partenaire_nom: g.partenaire_nom, point_vente_id: g.point_vente_id,
       })))
 
+      const lat = parseFloat(form.latitude), lng = parseFloat(form.longitude)
+      const gpsOk = !isNaN(lat) && !isNaN(lng)
       // 1) Commande globale
       const { data: cmd, error: e1 } = await supabase.from('commandes').insert({
         numero, client_nom: form.nom, client_telephone: form.telephone, client_email: form.email || null,
         client_ville: form.ville, client_adresse: form.adresse || '—', notes: form.notes || null,
+        client_latitude: gpsOk ? lat : null, client_longitude: gpsOk ? lng : null,
         articles: articlesSnapshot,
         total_produits: total, total_livraison: totalLivraison, total: grandTotal,
         statut: 'en_attente', paiement_methode: form.paiement, paiement_statut: 'en_attente',
@@ -60,7 +74,7 @@ export default function PageCommande() {
         const { data: sc, error: e2 } = await supabase.from('sous_commandes').insert({
           commande_id: cmd.id, point_vente_id: g.point_vente_id === 'batishop' ? null : g.point_vente_id,
           numero: `${numero}-${String.fromCharCode(65 + i)}`,
-          mode, adresse_livraison: mode === 'livraison' ? form.adresse : null,
+          mode, adresse_livraison: mode === 'livraison' ? (form.adresse + (gpsOk ? ` — 📍 https://maps.google.com/?q=${lat},${lng}` : '')) : null,
           frais_livraison: frais, sous_total: g.sousTotal, total: g.sousTotal + frais,
           statut: 'en_attente', paiement_statut: 'en_attente',
         }).select('id').single()
@@ -115,6 +129,18 @@ export default function PageCommande() {
                 <div className="md:col-span-2">
                   <label className="text-xs font-semibold text-gray-500 block mb-1">Adresse de livraison *</label>
                   <input name="adresse" value={form.adresse} onChange={champ} placeholder="Quartier, rue, point de repère…" className="input-field"/>
+                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                    <button type="button" onClick={maPosition}
+                      className={`flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${form.latitude ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:border-brique hover:text-brique'}`}>
+                      <Crosshair size={15}/> {geo === 'asking' ? 'Localisation…' : form.latitude ? 'Position captée ✓' : 'Utiliser ma position actuelle'}
+                    </button>
+                    {form.latitude && (
+                      <a href={`https://maps.google.com/?q=${form.latitude},${form.longitude}`} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-brique font-medium"><Navigation size={12}/> Vérifier sur la carte</a>
+                    )}
+                  </div>
+                  {geo === 'refused' && <p className="text-xs text-amber-600 mt-1">Position indisponible — indiquez bien l'adresse et un point de repère ci-dessus.</p>}
+                  <p className="text-xs text-gray-400 mt-1">Votre position GPS aide le livreur à vous trouver précisément (en plus de l'adresse).</p>
                 </div>
               )}
               <div className="md:col-span-2">
@@ -161,7 +187,7 @@ export default function PageCommande() {
             <div className="space-y-2">
               {[
                 { id: 'en_ligne', label: '📱 Paiement en ligne', desc: 'Orange Money / MTN MoMo à la commande' },
-                { id: 'reception', label: '💵 Paiement à la réception', desc: 'Cash au retrait ou à la livraison' },
+                { id: 'reception', label: '🏪 Paiement en magasin / à la réception', desc: 'En espèces au retrait en magasin ou à la livraison' },
               ].map(p => (
                 <label key={p.id} className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${form.paiement === p.id ? 'border-brique bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}>
                   <input type="radio" name="paiement" value={p.id} checked={form.paiement === p.id} onChange={champ} className="mt-0.5 accent-brique"/>
