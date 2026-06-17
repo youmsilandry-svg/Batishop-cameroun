@@ -1,133 +1,127 @@
 'use client'
 import { useState } from 'react'
-import { Store, CheckCircle2, Loader2 } from 'lucide-react'
-
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
-const VILLES = ['Douala','Yaoundé','Bafoussam','Garoua','Bamenda','Maroua','Ngaoundéré','Bertoua','Ebolowa','Kumba','Limbe','Kribi']
-
-const post = (table:string, body:any, repr=false) => fetch(`${URL}/rest/v1/${table}`, {
-  method:'POST',
-  headers:{ 'apikey':KEY, 'Authorization':`Bearer ${KEY}`, 'Content-Type':'application/json', 'Prefer': repr?'return=representation':'return=minimal' },
-  body: JSON.stringify(body),
-})
-
-type FormState = { nom:string; ville:string; quartier:string; adresse:string; telephone:string; email:string; horaires:string; description:string }
-const VIDE: FormState = { nom:'',ville:'',quartier:'',adresse:'',telephone:'',email:'',horaires:'',description:'' }
+import { Check, Send, Store, HardHat } from 'lucide-react'
+import { supabase, VILLES } from '../../lib/supabase'
 
 export default function FormulaireCandidature() {
-  const [form, setForm] = useState<FormState>(VIDE)
+  const [type, setType] = useState<'quincaillerie' | 'professionnel'>('quincaillerie')
+  const [f, setF] = useState({ nom: '', ville: 'Douala', quartier: '', adresse: '', telephone: '', email: '', metier: '', message: '' })
   const [envoi, setEnvoi] = useState(false)
-  const [succes, setSucces] = useState(false)
-  const [erreur, setErreur] = useState('')
+  const [ok, setOk] = useState(false)
+  const [err, setErr] = useState('')
 
-  const maj = (c: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) =>
-    setForm(f => ({ ...f, [c]: e.target.value }))
+  const champ = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setF(s => ({ ...s, [e.target.name]: e.target.value }))
 
-  const envoyer = async (e: React.FormEvent) => {
-    e.preventDefault(); setErreur('')
-    if (!form.nom || !form.ville || !form.quartier || !form.telephone || !form.email) {
-      setErreur('Merci de remplir les champs marqués d’un *.'); return
-    }
+  const soumettre = async (e: React.FormEvent) => {
+    e.preventDefault(); setErr('')
+    if (!f.nom || !f.telephone || !f.ville) { setErr('Nom, ville et téléphone sont obligatoires.'); return }
     setEnvoi(true)
     try {
-      // 1) Créer l'entreprise (candidature en attente)
-      const resEnt = await post('entreprises', {
-        nom: form.nom.trim(), email: form.email.trim(), telephone: form.telephone.trim(), statut: 'en_attente',
-      }, true)
-      if (!resEnt.ok) throw new Error(await resEnt.text().catch(()=>`Erreur ${resEnt.status}`))
-      const ent = await resEnt.json()
-      const entreprise_id = Array.isArray(ent) ? ent[0]?.id : ent?.id
-      if (!entreprise_id) throw new Error('Création entreprise sans id')
+      const description = [
+        `Type: ${type === 'quincaillerie' ? 'Quincaillerie' : 'Professionnel'}`,
+        type === 'professionnel' && f.metier ? `Métier: ${f.metier}` : '',
+        f.message ? `Message: ${f.message}` : '',
+      ].filter(Boolean).join(' | ')
 
-      // 2) Créer la première boutique rattachée
-      const resB = await post('partenaires_magasins', {
-        entreprise_id,
-        nom: form.nom.trim(),
-        ville: form.ville, quartier: form.quartier.trim(),
-        adresse: form.adresse.trim() || null,
-        telephone: form.telephone.trim(),
-        telephones: [form.telephone.trim()],
-        horaires: form.horaires.trim() || null,
-        description: form.description.trim() || null,
-        statut: 'en_attente', actif: false,
+      const { data: ent, error: e1 } = await supabase.from('entreprises').insert({
+        nom: f.nom, email: f.email || null, telephone: f.telephone, statut: 'en_attente',
+      }).select('id').single()
+      if (e1 || !ent) throw e1 || new Error('entreprise')
+
+      const { error: e2 } = await supabase.from('partenaires_magasins').insert({
+        entreprise_id: ent.id, nom: f.nom, ville: f.ville,
+        quartier: f.quartier || null, adresse: f.adresse || null,
+        telephone: f.telephone, telephones: [f.telephone],
+        description, statut: 'en_attente', actif: false,
       })
-      if (!resB.ok) throw new Error(await resB.text().catch(()=>`Erreur ${resB.status}`))
-
-      setSucces(true); setForm(VIDE)
-    } catch (err:any) {
-      setErreur('Impossible d’envoyer votre candidature pour le moment. Réessayez dans un instant.')
-      console.error('Candidature:', err)
-    } finally { setEnvoi(false) }
+      if (e2) throw e2
+      setOk(true)
+    } catch (er) {
+      console.error(er)
+      setErr("Une erreur est survenue. Réessayez, ou appelez-nous.")
+      setEnvoi(false)
+    }
   }
 
-  if (succes) return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center max-w-xl mx-auto">
-      <CheckCircle2 size={44} className="text-green-600 mx-auto mb-4" />
-      <h3 className="font-condensed font-bold text-2xl text-acier mb-2">Candidature envoyée !</h3>
-      <p className="text-gray-500 mb-6">Merci. Notre équipe vérifie votre quincaillerie et vous recontacte rapidement pour créer votre compte partenaire.</p>
-      <button onClick={()=>setSucces(false)} className="text-brique font-semibold hover:underline">Envoyer une autre candidature</button>
+  if (ok) return (
+    <div className="bg-white rounded-2xl border border-green-200 p-8 text-center max-w-lg mx-auto">
+      <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+        <Check className="text-green-600" size={28} />
+      </div>
+      <h3 className="font-condensed font-bold text-xl text-acier mb-2">Candidature envoyée !</h3>
+      <p className="text-gray-500 text-sm">Merci. Notre équipe étudie votre demande et vous recontacte au numéro indiqué pour activer votre espace partenaire.</p>
     </div>
   )
 
-  const champClass = 'w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-brique focus:ring-1 focus:ring-brique transition-colors'
-  const labelClass = 'block text-xs font-semibold text-gray-500 mb-1.5'
+  const champStyle = "w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brique"
+  const labelStyle = "text-xs font-semibold text-gray-500 block mb-1"
 
   return (
-    <form onSubmit={envoyer} className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 max-w-xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-11 h-11 rounded-xl bg-brique/10 flex items-center justify-center shrink-0"><Store size={20} className="text-brique" /></div>
-        <div>
-          <h3 className="font-condensed font-bold text-xl text-acier leading-tight">Formulaire d’inscription</h3>
-          <p className="text-xs text-gray-400">Gratuit · sans engagement · réponse sous 48 h</p>
-        </div>
+    <form onSubmit={soumettre} className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 max-w-2xl mx-auto">
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <button type="button" onClick={() => setType('quincaillerie')}
+          className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-colors ${type === 'quincaillerie' ? 'border-brique bg-brique/5' : 'border-gray-200'}`}>
+          <Store size={20} className={type === 'quincaillerie' ? 'text-brique' : 'text-gray-400'} />
+          <div>
+            <div className="font-semibold text-sm text-acier">Quincaillerie</div>
+            <div className="text-xs text-gray-400">Je vends des matériaux</div>
+          </div>
+        </button>
+        <button type="button" onClick={() => setType('professionnel')}
+          className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-colors ${type === 'professionnel' ? 'border-brique bg-brique/5' : 'border-gray-200'}`}>
+          <HardHat size={20} className={type === 'professionnel' ? 'text-brique' : 'text-gray-400'} />
+          <div>
+            <div className="font-semibold text-sm text-acier">Professionnel</div>
+            <div className="text-xs text-gray-400">Maçon, plombier, électricien…</div>
+          </div>
+        </button>
       </div>
 
-      {erreur && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3.5 py-2.5 mb-4">⚠️ {erreur}</div>}
+      {err && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">⚠️ {err}</div>}
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2">
-          <label className={labelClass}>Nom du magasin *</label>
-          <input className={champClass} value={form.nom} onChange={maj('nom')} placeholder="Ex : Quincaillerie du Wouri" />
+          <label className={labelStyle}>{type === 'quincaillerie' ? 'Nom du magasin *' : 'Nom / Entreprise *'}</label>
+          <input name="nom" value={f.nom} onChange={champ} className={champStyle} placeholder={type === 'quincaillerie' ? 'Quincaillerie du Wouri' : 'Votre nom ou raison sociale'} />
+        </div>
+        {type === 'professionnel' && (
+          <div className="sm:col-span-2">
+            <label className={labelStyle}>Métier</label>
+            <input name="metier" value={f.metier} onChange={champ} className={champStyle} placeholder="Maçon, plombier, électricien, carreleur…" />
+          </div>
+        )}
+        <div>
+          <label className={labelStyle}>Ville *</label>
+          <select name="ville" value={f.ville} onChange={champ} className={champStyle}>{VILLES.map(v => <option key={v}>{v}</option>)}</select>
         </div>
         <div>
-          <label className={labelClass}>Ville *</label>
-          <select className={champClass} value={form.ville} onChange={maj('ville')}>
-            <option value="">Choisir…</option>{VILLES.map(v=><option key={v} value={v}>{v}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelClass}>Quartier *</label>
-          <input className={champClass} value={form.quartier} onChange={maj('quartier')} placeholder="Ex : Akwa, Bonabéri…" />
+          <label className={labelStyle}>Quartier</label>
+          <input name="quartier" value={f.quartier} onChange={champ} className={champStyle} placeholder="Akwa, Bonamoussadi…" />
         </div>
         <div className="sm:col-span-2">
-          <label className={labelClass}>Adresse / repère</label>
-          <input className={champClass} value={form.adresse} onChange={maj('adresse')} placeholder="Ex : face station Total" />
+          <label className={labelStyle}>Adresse (facultatif)</label>
+          <input name="adresse" value={f.adresse} onChange={champ} className={champStyle} placeholder="Rue, point de repère" />
         </div>
         <div>
-          <label className={labelClass}>Téléphone *</label>
-          <input className={champClass} value={form.telephone} onChange={maj('telephone')} placeholder="6XX XXX XXX" inputMode="tel" />
+          <label className={labelStyle}>Téléphone *</label>
+          <input name="telephone" value={f.telephone} onChange={champ} className={champStyle} placeholder="6XX XXX XXX" type="tel" />
         </div>
         <div>
-          <label className={labelClass}>Email *</label>
-          <input className={champClass} type="email" value={form.email} onChange={maj('email')} placeholder="votre@email.com" />
+          <label className={labelStyle}>Email (facultatif)</label>
+          <input name="email" value={f.email} onChange={champ} className={champStyle} placeholder="vous@email.com" type="email" />
         </div>
         <div className="sm:col-span-2">
-          <label className={labelClass}>Horaires d’ouverture</label>
-          <input className={champClass} value={form.horaires} onChange={maj('horaires')} placeholder="Ex : Lun–Sam 7h30–18h" />
-        </div>
-        <div className="sm:col-span-2">
-          <label className={labelClass}>Quels produits vendez-vous ?</label>
-          <textarea className={champClass} rows={3} value={form.description} onChange={maj('description')} placeholder="Ex : ciment, fer, plomberie…" />
+          <label className={labelStyle}>Message (facultatif)</label>
+          <textarea name="message" value={f.message} onChange={champ} rows={3} className={`${champStyle} resize-none`} placeholder="Parlez-nous de votre activité, vos produits…" />
         </div>
       </div>
 
       <button type="submit" disabled={envoi}
-        className="mt-6 w-full inline-flex items-center justify-center gap-2 bg-brique hover:bg-brique-dark disabled:bg-gray-300 text-white font-bold px-6 py-3 rounded-lg transition-colors">
-        {envoi ? (<><Loader2 size={18} className="animate-spin" /> Envoi en cours…</>) : 'Envoyer ma candidature'}
+        className={`w-full mt-5 flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-white transition-colors ${envoi ? 'bg-gray-400' : 'bg-brique hover:bg-brique-dark'}`}>
+        {envoi ? 'Envoi…' : <>Envoyer ma candidature <Send size={17} /></>}
       </button>
-      <p className="text-xs text-gray-400 text-center mt-3">En envoyant ce formulaire, vous acceptez d’être recontacté par BatiShop.</p>
+      <p className="text-xs text-gray-400 text-center mt-3">C'est gratuit et sans engagement. Nous vous recontactons pour activer votre espace.</p>
     </form>
   )
 }

@@ -68,7 +68,7 @@ export function Footer() {
             className="block text-sm text-white/60 hover:text-or py-0.5">
             👷 Partenaire professionnel
           </Link>
-          <Link href="/partenaires"
+          <Link href="/partenaires#candidature"
             className="block text-sm text-white/60 hover:text-or py-0.5">
             📋 Soumettre une candidature
           </Link>
@@ -76,7 +76,7 @@ export function Footer() {
             className="block text-sm text-white/60 hover:text-or py-0.5">
             ✉️ partenaires@batishop.cm
           </Link>
-          <Link href="/partenaires"
+          <Link href="/partenaires#candidature"
             className="inline-block mt-3 bg-brique hover:bg-brique-dark text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors">
             Rejoindre le réseau →
           </Link>
@@ -103,7 +103,7 @@ export function Footer() {
             🤝 <span className="text-white/70 font-medium">Vous êtes une quincaillerie ou un professionnel du bâtiment ?</span>{' '}
             Rejoignez le réseau BatiShop Cameroun.
           </div>
-          <Link href="/partenaires"
+          <Link href="/partenaires#candidature"
             className="shrink-0 bg-or hover:bg-or-light text-acier font-bold text-sm px-5 py-2 rounded-lg transition-colors">
             Devenir partenaire →
           </Link>
