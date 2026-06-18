@@ -14,6 +14,25 @@ export default function PageCommande() {
   const [modes, setModes] = useState<Record<string, 'retrait' | 'livraison'>>({})
   const [form, setForm] = useState({ nom: '', telephone: '', email: '', ville: 'Douala', adresse: '', notes: '', paiement: 'reception' as 'reception' | 'en_ligne', latitude: '', longitude: '' })
   const [geo, setGeo] = useState<'idle' | 'asking' | 'ok' | 'refused'>('idle')
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setMounted(true)
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      setUserId(user.id)
+      const { data: prof } = await supabase.from('profils').select('*').eq('id', user.id).maybeSingle()
+      setForm(f => ({
+        ...f,
+        nom: f.nom || prof?.nom || '',
+        telephone: f.telephone || prof?.telephone || '',
+        email: f.email || user.email || '',
+        ville: prof?.ville || f.ville,
+        adresse: f.adresse || prof?.adresse || '',
+      }))
+    })()
+  }, [])
 
   const maPosition = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) { setGeo('refused'); return }
@@ -25,7 +44,6 @@ export default function PageCommande() {
     )
   }
 
-  useEffect(() => { setMounted(true) }, [])
   if (!mounted) return null
   if (parPartenaire.length === 0) { router.push('/panier'); return null }
 
@@ -57,7 +75,7 @@ export default function PageCommande() {
       const gpsOk = !isNaN(lat) && !isNaN(lng)
       // 1) Commande globale
       const { data: cmd, error: e1 } = await supabase.from('commandes').insert({
-        numero, client_nom: form.nom, client_telephone: form.telephone, client_email: form.email || null,
+        numero, user_id: userId, client_nom: form.nom, client_telephone: form.telephone, client_email: form.email || null,
         client_ville: form.ville, client_adresse: form.adresse || '—', notes: form.notes || null,
         client_latitude: gpsOk ? lat : null, client_longitude: gpsOk ? lng : null,
         articles: articlesSnapshot,

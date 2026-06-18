@@ -17,13 +17,13 @@ export default function PageCommandes() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/compte'); return }
       const { data: prof } = await supabase.from('profils').select('telephone').eq('id', user.id).single()
-      if (prof?.telephone) {
-        const { data } = await supabase.from('commandes')
-          .select('*')
-          .eq('client_telephone', prof.telephone)
-          .order('created_at', { ascending: false })
-        setCommandes(data || [])
-      }
+      const tel = (prof?.telephone || '').trim()
+      let query = supabase.from('commandes').select('*')
+      query = tel
+        ? query.or(`user_id.eq.${user.id},client_telephone.eq.${tel}`)
+        : query.eq('user_id', user.id)
+      const { data } = await query.order('created_at', { ascending: false })
+      setCommandes(data || [])
       setLoading(false)
     }
     charger()
@@ -49,6 +49,35 @@ export default function PageCommandes() {
     localStorage.setItem('batishop_panier', JSON.stringify(panier || []))
     window.dispatchEvent(new Event('panier-updated'))
     router.push('/panier')
+  }
+
+  const telechargerPDF = async (c: any) => {
+    const { default: jsPDF } = await import('jspdf')
+    const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' FCFA'
+    const doc = new jsPDF()
+    let y = 18
+    doc.setFontSize(18); doc.setTextColor(192, 57, 43); doc.text('BatiShop Cameroun', 14, y)
+    doc.setFontSize(10); doc.setTextColor(120, 120, 120); doc.text('Récapitulatif de commande', 14, y + 6)
+    doc.setDrawColor(192, 57, 43); doc.line(14, y + 9, 196, y + 9)
+    doc.setTextColor(34, 34, 34); doc.setFontSize(11); y += 20
+    doc.text(`N° de commande : ${c.numero}`, 14, y); y += 6
+    doc.text(`Date : ${new Date(c.created_at).toLocaleDateString('fr-FR')}`, 14, y); y += 6
+    doc.text(`Client : ${c.client_nom || ''} - ${c.client_telephone || ''}`, 14, y); y += 6
+    doc.text(`Ville : ${c.client_ville || ''}`, 14, y); y += 6
+    if (c.client_adresse && c.client_adresse !== '—') { doc.text(`Adresse : ${c.client_adresse}`, 14, y); y += 6 }
+    doc.text(`Paiement : ${(c.paiement_methode || '').replace('_', ' ')}`, 14, y); y += 10
+    ;(c.articles || []).forEach((a: any) => {
+      doc.text(`- ${a.nom}  x${a.quantite} ${a.unite || ''}${a.partenaire_nom ? ' (' + a.partenaire_nom + ')' : ''}`, 18, y)
+      doc.text(fmt(a.prix * a.quantite), 196, y, { align: 'right' })
+      y += 6
+      if (y > 272) { doc.addPage(); y = 18 }
+    })
+    y += 4; doc.setDrawColor(200, 200, 200); doc.line(14, y, 196, y); y += 8
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13)
+    doc.text('TOTAL', 14, y); doc.text(fmt(c.total), 196, y, { align: 'right' })
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(150, 150, 150)
+    doc.text('Merci de votre confiance - BatiShop Cameroun', 105, 285, { align: 'center' })
+    doc.save(`commande-${c.numero}.pdf`)
   }
 
   if (loading) return (
@@ -177,6 +206,10 @@ export default function PageCommandes() {
 
                 {/* Actions */}
                 <div className="px-4 pb-4 flex gap-2 flex-wrap">
+                  <button onClick={() => telechargerPDF(c)}
+                    className="flex items-center gap-1.5 text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:border-brique hover:text-brique font-medium">
+                    📄 Télécharger le PDF
+                  </button>
                   {c.statut === 'livree' && (
                     <button onClick={() => recomander(c)}
                       className="flex items-center gap-1.5 text-xs bg-brique text-white px-3 py-1.5 rounded-lg hover:bg-brique-dark font-medium">
