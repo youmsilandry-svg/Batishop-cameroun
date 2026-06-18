@@ -16,34 +16,98 @@ export default function RecapImpression({ num }: { num?: string }) {
 
   if (!order) return null
 
-  const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA'
-  const paie = order.paiement === 'en_ligne' ? 'Paiement en ligne' : 'Paiement à la réception'
+  // Format ASCII (espace normale comme séparateur) pour éviter les caractères que le PDF ne sait pas afficher
+  const fmt = (n: number) => Math.round(Number(n) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA'
+  const paie = order.paiement === 'en_ligne' ? 'Paiement en ligne (Orange Money / MTN MoMo)' : 'Paiement en magasin / à la réception'
 
   const telechargerPDF = async () => {
     const mod = await import('jspdf')
     const jsPDF = (mod as any).jsPDF || (mod as any).default
-    const doc = new jsPDF()
-    let y = 18
-    doc.setFontSize(18); doc.text('BatiShop Cameroun', 14, y); y += 8
-    doc.setFontSize(11); doc.text(`Commande : ${order.numero}`, 14, y); y += 6
-    doc.text(`Date : ${new Date(order.date).toLocaleString('fr-FR')}`, 14, y); y += 6
-    if (order.nom) { doc.text(`Client : ${order.nom}`, 14, y); y += 6 }
-    if (order.ville) { doc.text(`Ville : ${order.ville}${order.adresse && order.adresse !== '—' ? ' — ' + order.adresse : ''}`, 14, y); y += 6 }
-    y += 2; doc.setFontSize(12); doc.text('Articles', 14, y); y += 7
-    doc.setFontSize(10)
-    ;(order.articles || []).forEach((a: any) => {
-      doc.text(`${a.nom}  x${a.quantite} ${a.unite || ''}`, 16, y)
-      doc.text(fmt((a.prix || 0) * a.quantite), 196, y, { align: 'right' })
-      y += 6
-      if (y > 270) { doc.addPage(); y = 18 }
-    })
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const W = 210, M = 15, right = W - M
+
+    // En-tête (bandeau)
+    doc.setFillColor(26, 35, 50)
+    doc.rect(0, 0, W, 28, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(19)
+    doc.text('BatiShop Cameroun', M, 14)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+    doc.setTextColor(210, 210, 210)
+    doc.text('Materiaux de construction - Livraison dans tout le Cameroun', M, 21)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
+    doc.setTextColor(255, 255, 255)
+    doc.text('RECU DE COMMANDE', right, 14, { align: 'right' })
+
+    // Méta commande
+    let y = 40
+    doc.setTextColor(34, 34, 34); doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
+    doc.text(`Commande ${order.numero}`, M, y)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(110, 110, 110)
+    doc.text(new Date(order.date).toLocaleString('fr-FR'), right, y, { align: 'right' })
+    y += 8
+
+    // Bloc client
+    doc.setTextColor(34, 34, 34); doc.setFontSize(10)
+    if (order.nom) { doc.text(`Client : ${order.nom}`, M, y); y += 5.5 }
+    if (order.ville) { doc.text(`Ville : ${order.ville}`, M, y); y += 5.5 }
+    if (order.adresse && order.adresse !== '—') { doc.text(`Adresse : ${order.adresse}`, M, y); y += 5.5 }
     y += 3
+
+    // En-tête tableau
+    const qteX = 130, puX = 165, totX = right
+    doc.setFillColor(242, 237, 232)
+    doc.rect(M - 2, y - 5, W - 2 * M + 4, 8, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(80, 80, 80)
+    doc.text('ARTICLE', M, y)
+    doc.text('QTE', qteX, y, { align: 'center' })
+    doc.text('P.U.', puX, y, { align: 'right' })
+    doc.text('TOTAL', totX, y, { align: 'right' })
+    y += 7
+
+    // Lignes
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(34, 34, 34)
+    let produitsTotal = 0
+    ;(order.articles || []).forEach((a: any) => {
+      const ligneTotal = (a.prix || 0) * a.quantite
+      produitsTotal += ligneTotal
+      const nom = doc.splitTextToSize(String(a.nom || ''), 100)
+      doc.text(nom, M, y)
+      doc.text(`${a.quantite} ${a.unite || ''}`.trim(), qteX, y, { align: 'center' })
+      doc.text(fmt(a.prix || 0), puX, y, { align: 'right' })
+      doc.text(fmt(ligneTotal), totX, y, { align: 'right' })
+      const h = Array.isArray(nom) ? nom.length * 5 : 5
+      y += Math.max(h, 6)
+      doc.setDrawColor(235, 235, 235); doc.line(M, y - 2, right, y - 2)
+      if (y > 250) { doc.addPage(); y = 20 }
+    })
+
+    // Totaux
+    y += 4
+    doc.setFontSize(10); doc.setTextColor(90, 90, 90)
+    doc.text('Sous-total produits', puX, y, { align: 'right' })
+    doc.text(fmt(produitsTotal), totX, y, { align: 'right' }); y += 6
     if (order.totalLivraison) {
-      doc.text('Livraison', 16, y); doc.text(fmt(order.totalLivraison), 196, y, { align: 'right' }); y += 6
+      doc.text('Livraison', puX, y, { align: 'right' })
+      doc.text(fmt(order.totalLivraison), totX, y, { align: 'right' }); y += 6
     }
-    doc.setFontSize(12)
-    doc.text('TOTAL', 16, y); doc.text(fmt(order.total), 196, y, { align: 'right' }); y += 8
-    doc.setFontSize(10); doc.text(paie, 16, y)
+    doc.setDrawColor(192, 57, 43); doc.line(120, y - 2, right, y - 2); y += 4
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(192, 57, 43)
+    doc.text('TOTAL', puX, y, { align: 'right' })
+    doc.text(fmt(order.total), totX, y, { align: 'right' }); y += 10
+
+    // Paiement
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(34, 34, 34)
+    doc.text(`Mode de paiement : ${paie}`, M, y); y += 6
+    doc.setFontSize(9); doc.setTextColor(120, 120, 120)
+    doc.text('Notre equipe vous contactera pour confirmer les details de livraison.', M, y)
+
+    // Pied de page
+    doc.setDrawColor(220, 220, 220); doc.line(M, 282, right, 282)
+    doc.setFontSize(8); doc.setTextColor(150, 150, 150)
+    doc.text('Merci pour votre confiance - BatiShop Cameroun', M, 288)
+    doc.text('batishop-cameroun.com', right, 288, { align: 'right' })
+
     doc.save(`commande-${order.numero}.pdf`)
   }
 
