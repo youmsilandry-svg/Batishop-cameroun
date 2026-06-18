@@ -106,14 +106,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (etat === 'ok') return (
     <>
-      <div style={{ position: 'fixed', top: 10, right: 12, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #eee', borderRadius: 999, padding: '6px 8px 6px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.08)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #eee', borderRadius: 999, padding: '6px 8px 6px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <span style={{ fontSize: 12, color: '#888', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={adminEmail}>{adminEmail}</span>
         <button onClick={() => { setShowChangePwd(true); setPwdMsg('') }} title="Changer le mot de passe" style={{ background: '#F2EDE8', color: '#1A2332', border: 'none', borderRadius: 999, padding: '6px 10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🔑</button>
         <button onClick={deconnexion} style={{ background: '#C0392B', color: '#fff', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Déconnexion</button>
       </div>
 
       {needRotation && !showChangePwd && (
-        <div style={{ position: 'fixed', top: 56, right: 12, zIndex: 9998, maxWidth: 300, background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: '10px 14px', fontSize: 12, color: '#8a6d00', boxShadow: '0 4px 14px rgba(0,0,0,0.08)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ position: 'fixed', bottom: 70, right: 16, zIndex: 9998, maxWidth: 300, background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: '10px 14px', fontSize: 12, color: '#8a6d00', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', fontFamily: 'Inter, system-ui, sans-serif' }}>
           🔒 Votre mot de passe date de plus de 3 mois.{' '}
           <button onClick={() => setShowChangePwd(true)} style={{ background: 'none', border: 'none', color: '#C0392B', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Le changer</button>
         </div>
