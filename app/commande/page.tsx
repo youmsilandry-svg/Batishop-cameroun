@@ -111,6 +111,20 @@ export default function PageCommande() {
         if (e3) throw e3
       }
 
+      // Email de confirmation au client (si email fourni) — sans bloquer la suite
+      if (form.email) {
+        fetch('/api/send-order-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: form.email, nom: form.nom, numero,
+            total: grandTotal, totalLivraison,
+            articles: articlesSnapshot, paiement: form.paiement,
+            ville: form.ville, adresse: form.adresse,
+          }),
+        }).catch(() => {})
+      }
+
       viderPanier()
       router.push(`/commande/confirmation?num=${numero}`)
     } catch (err) {
