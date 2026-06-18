@@ -39,6 +39,7 @@ export default function EspacePartenaire() {
   const [form, setForm] = useState<any>({})
   const [modifStocks, setModifStocks] = useState<Record<string, number>>({})
   const [modifPrix, setModifPrix] = useState<Record<string, number>>({})
+  const [modifPromo, setModifPromo] = useState<Record<string, number | null>>({})
   const [prixMoyens, setPrixMoyens] = useState<Record<string, { prix_moyen: number; nb_partenaires: number }>>({})
   const [rechercheProd, setRechercheProd] = useState('')
   const [modeAjout, setModeAjout] = useState(false)
@@ -144,21 +145,23 @@ export default function EspacePartenaire() {
     setSaving(true)
     let ok = 0
     // On enregistre tous les produits modifiés (quantité OU prix)
-    const idsModifies = Array.from(new Set([...Object.keys(modifStocks), ...Object.keys(modifPrix)]))
+    const idsModifies = Array.from(new Set([...Object.keys(modifStocks), ...Object.keys(modifPrix), ...Object.keys(modifPromo)]))
     for (const produitId of idsModifies) {
       const existant = stocks.find(s => s.produit_id === produitId)
       const qte = modifStocks[produitId] !== undefined ? modifStocks[produitId] : (existant?.quantite ?? 0)
       const prix = modifPrix[produitId] !== undefined ? modifPrix[produitId] : (existant?.prix_local ?? null)
+      let promo = modifPromo[produitId] !== undefined ? modifPromo[produitId] : (existant?.prix_local_ancien ?? null)
+      if (!promo || (prix && promo <= prix)) promo = null  // promo valide seulement si > prix actuel
       if (existant) {
         await apiAuth(`stocks_partenaires?id=eq.${existant.id}`, token, {
           method: 'PATCH',
-          body: JSON.stringify({ quantite: qte, prix_local: prix, disponible_immediat: qte > 0 })
+          body: JSON.stringify({ quantite: qte, prix_local: prix, prix_local_ancien: promo, disponible_immediat: qte > 0 })
         })
-        setStocks(prev => prev.map(s => s.id === existant.id ? { ...s, quantite: qte, prix_local: prix, disponible_immediat: qte > 0 } : s))
+        setStocks(prev => prev.map(s => s.id === existant.id ? { ...s, quantite: qte, prix_local: prix, prix_local_ancien: promo, disponible_immediat: qte > 0 } : s))
       } else {
         const nouveau = await apiAuth('stocks_partenaires', token, {
           method: 'POST',
-          body: JSON.stringify({ partenaire_id: magasin.id, produit_id: produitId, quantite: qte, prix_local: prix, disponible_immediat: qte > 0 })
+          body: JSON.stringify({ partenaire_id: magasin.id, produit_id: produitId, quantite: qte, prix_local: prix, prix_local_ancien: promo, disponible_immediat: qte > 0 })
         })
         if (nouveau) setStocks(prev => [...prev, ...(Array.isArray(nouveau) ? nouveau : [nouveau])])
       }
@@ -166,6 +169,7 @@ export default function EspacePartenaire() {
     }
     setModifStocks({})
     setModifPrix({})
+    setModifPromo({})
     setModeAjout(false)
     setSucces(`✓ ${ok} produit${ok > 1 ? 's' : ''} mis à jour`)
     setSaving(false)
@@ -177,13 +181,18 @@ export default function EspacePartenaire() {
     return stocks.find(s => s.produit_id === produitId)?.prix_local ?? null
   }
 
+  const getPromo = (produitId: string) => {
+    if (modifPromo[produitId] !== undefined) return modifPromo[produitId]
+    return stocks.find(s => s.produit_id === produitId)?.prix_local_ancien ?? null
+  }
+
   const getStock = (produitId: string) => {
     if (modifStocks[produitId] !== undefined) return modifStocks[produitId]
     return stocks.find(s => s.produit_id === produitId)?.quantite ?? null
   }
 
   const nbEnStock = produits.filter(p => (getStock(p.id) || 0) > 0).length
-  const nbModifs = new Set([...Object.keys(modifStocks), ...Object.keys(modifPrix)]).size
+  const nbModifs = new Set([...Object.keys(modifStocks), ...Object.keys(modifPrix), ...Object.keys(modifPromo)]).size
 
   // IDs des produits que le partenaire propose déjà (déclarés dans stocks_partenaires)
   const idsDeclares = new Set(stocks.map(s => s.produit_id))
@@ -485,7 +494,7 @@ export default function EspacePartenaire() {
                     const qte = getStock(p.id)
                     const prix = getPrix(p.id)
                     const moy = prixMoyens[p.id]
-                    const enModif = modifStocks[p.id] !== undefined || modifPrix[p.id] !== undefined
+                    const enModif = modifStocks[p.id] !== undefined || modifPrix[p.id] !== undefined || modifPromo[p.id] !== undefined
                     return (
                       <tr key={p.id}
                         style={{ background: enModif ? '#f0fff4' : '' }}
@@ -512,6 +521,20 @@ export default function EspacePartenaire() {
                             style={{ width: 100, padding: '5px 10px', border: `1.5px solid ${modifPrix[p.id] !== undefined ? '#C0392B' : '#ddd'}`, borderRadius: 8, fontSize: 13, textAlign: 'right' }}
                           />
                           <span style={{ fontSize: 11, color: '#bbb', marginLeft: 6 }}>FCFA</span>
+                          <div style={{ marginTop: 5 }}>
+                            <input
+                              type="number" min={0}
+                              value={modifPromo[p.id] !== undefined ? (modifPromo[p.id] ?? '') : (getPromo(p.id) ?? '')}
+                              placeholder="Ancien prix"
+                              title="Ancien prix barré pour une promo. Doit être supérieur à ton prix actuel."
+                              onChange={e => {
+                                const v = e.target.value === '' ? null : Number(e.target.value)
+                                setModifPromo(prev => ({ ...prev, [p.id]: v }))
+                              }}
+                              style={{ width: 100, padding: '4px 10px', border: `1.5px solid ${modifPromo[p.id] !== undefined ? '#C0392B' : '#eee'}`, borderRadius: 8, fontSize: 12, textAlign: 'right', color: '#C0392B' }}
+                            />
+                            <span style={{ fontSize: 10, color: '#bbb', marginLeft: 4 }}>promo (barré)</span>
+                          </div>
                         </td>
                         {/* Prix moyen du site */}
                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f5f5f5', fontSize: 12 }}>

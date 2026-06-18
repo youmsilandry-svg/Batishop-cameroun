@@ -35,7 +35,7 @@ export function OuTrouver({ produit }: { produit: Produit }) {
     setLoading(true)
     const { data } = await supabase
       .from('stocks_partenaires')
-      .select(`quantite, disponible_immediat, prix_local,
+      .select(`quantite, disponible_immediat, prix_local, prix_local_ancien,
         partenaires_magasins!inner(id, nom, ville, quartier, adresse, telephone, horaires, latitude, longitude, livre, frais_livraison_base, note, nb_avis)`)
       .eq('produit_id', produit.id)
       .eq('partenaires_magasins.ville', ville)
@@ -162,6 +162,8 @@ export function OuTrouver({ produit }: { produit: Produit }) {
               const mag = s.partenaires_magasins
               const moinsCher = moyenne > 0 && s.prix_local < moyenne
               const sansPrix = !s.prix_local || s.prix_local <= 0
+              const enPromo = s.prix_local_ancien && s.prix_local && s.prix_local_ancien > s.prix_local
+              const remise = enPromo ? Math.round((1 - s.prix_local / s.prix_local_ancien) * 100) : 0
               return (
                 <div key={mag.id} className={`p-3 rounded-xl border transition-colors ${s._meilleurPrix ? 'bg-green-50 border-green-300' : 'bg-beton border-transparent hover:bg-gray-100'}`}>
                   <div className="flex items-start gap-3">
@@ -183,7 +185,9 @@ export function OuTrouver({ produit }: { produit: Produit }) {
                         <div className="text-xs text-gray-400 font-medium">Prix non<br/>communiqué</div>
                       ) : (
                         <>
-                          <div className={`font-condensed font-bold text-lg ${moinsCher ? 'text-green-700' : 'text-brique'}`}>{formatPrix(s.prix_local)}</div>
+                          {enPromo && <div className="text-xs bg-brique text-white font-bold px-1.5 py-0.5 rounded inline-block mb-0.5">-{remise}%</div>}
+                          <div className={`font-condensed font-bold text-lg ${enPromo ? 'text-brique' : moinsCher ? 'text-green-700' : 'text-brique'}`}>{formatPrix(s.prix_local)}</div>
+                          {enPromo && <div className="text-xs text-gray-400 line-through">{formatPrix(s.prix_local_ancien)}</div>}
                           <div className="text-xs text-gray-400">/ {produit.unite}</div>
                         </>
                       )}
