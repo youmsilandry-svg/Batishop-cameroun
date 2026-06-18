@@ -68,9 +68,10 @@ export default function RecapImpression({ num }: { num?: string }) {
       </div>
       <div className="text-xs text-gray-500 mt-1">{paie}</div>
 
-      <div className="flex gap-3 justify-center mt-4 print:hidden">
-        <button onClick={() => window.print()} className="btn-outline">🖨️ Imprimer</button>
-        <button onClick={telechargerPDF} className="btn-primary">📄 Télécharger PDF</button>
+      <div className="flex justify-center mt-4 print:hidden">
+        <button onClick={telechargerPDF} className="btn-primary flex items-center gap-2">
+          📄 Imprimer / Télécharger (PDF)
+        </button>
       </div>
     </div>
   )
