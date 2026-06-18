@@ -11,39 +11,6 @@ export default function PagePanier() {
   useEffect(() => setMounted(true), [])
   if (!mounted) return null
 
-  const telechargerPDF = async () => {
-    const { default: jsPDF } = await import('jspdf')
-    const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' FCFA'
-    const doc = new jsPDF()
-    let y = 18
-    doc.setFontSize(18); doc.setTextColor(192, 57, 43); doc.text('BatiShop Cameroun', 14, y)
-    doc.setFontSize(10); doc.setTextColor(120, 120, 120); doc.text('Liste de mon panier', 14, y + 6)
-    doc.text(new Date().toLocaleDateString('fr-FR'), 196, y, { align: 'right' })
-    doc.setDrawColor(192, 57, 43); doc.line(14, y + 9, 196, y + 9)
-    y += 18; doc.setTextColor(34, 34, 34)
-    parPartenaire.forEach((g: any) => {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(12)
-      doc.text(g.partenaire_nom || 'BatiShop', 14, y); y += 7
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
-      g.lignes.forEach((a: any) => {
-        doc.text(`- ${a.produit.nom}  x${a.quantite} ${a.produit.unite || ''}`, 18, y)
-        doc.text(fmt(a.prix_unitaire * a.quantite), 196, y, { align: 'right' })
-        y += 6
-        if (y > 270) { doc.addPage(); y = 18 }
-      })
-      doc.setFont('helvetica', 'bold')
-      doc.text(`Sous-total ${g.partenaire_nom || ''}`, 18, y); doc.text(fmt(g.sousTotal), 196, y, { align: 'right' }); y += 9
-      doc.setFont('helvetica', 'normal')
-      if (y > 265) { doc.addPage(); y = 18 }
-    })
-    doc.setDrawColor(200, 200, 200); doc.line(14, y, 196, y); y += 8
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(13)
-    doc.text('TOTAL', 14, y); doc.text(fmt(total), 196, y, { align: 'right' })
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(150, 150, 150)
-    doc.text('Document indicatif — les prix peuvent varier selon la boutique. BatiShop Cameroun', 105, 288, { align: 'center' })
-    doc.save('panier-batishop.pdf')
-  }
-
 
   if (parPartenaire.length === 0) return (
     <div className="max-w-2xl mx-auto px-4 py-16 text-center">
@@ -137,10 +104,6 @@ export default function PagePanier() {
             <Link href="/commande" className="btn-primary w-full text-center block py-3">
               Passer la commande →
             </Link>
-            <button onClick={telechargerPDF}
-              className="w-full text-center block py-2.5 mt-3 border border-gray-200 text-gray-600 rounded-lg hover:border-brique hover:text-brique font-medium text-sm">
-              📄 Télécharger / imprimer (PDF)
-            </button>
             <Link href="/produits" className="block text-center text-sm text-gray-500 hover:text-brique mt-3">
               ← Continuer mes achats
             </Link>
