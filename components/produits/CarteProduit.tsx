@@ -1,12 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ShoppingCart, Heart, Eye } from 'lucide-react'
+import { ShoppingCart, Check } from 'lucide-react'
 import { Produit, formatPrix } from '../../lib/supabase'
 import BoutonFavori from './BoutonFavori'
 
 export function CarteProduit({ produit }: { produit: Produit }) {
-  const [ajoute, setAjoute] = useState(false)
   const [dansPanier, setDansPanier] = useState(false)
 
   useEffect(() => {
@@ -28,27 +27,12 @@ export function CarteProduit({ produit }: { produit: Produit }) {
     }
   }, [produit.id])
 
-  const ajouterAuPanier = (e: React.MouseEvent) => {
-    e.preventDefault()
-    const data = localStorage.getItem('batishop_panier')
-    const items = data ? JSON.parse(data) : []
-    const existe = items.find((a: any) => a.produit.id === produit.id)
-    const nouveau = existe
-      ? items.map((a: any) => a.produit.id === produit.id ? { ...a, quantite: a.quantite + 1 } : a)
-      : [...items, { produit, quantite: 1 }]
-    localStorage.setItem('batishop_panier', JSON.stringify(nouveau))
-    window.dispatchEvent(new Event('panier-updated'))
-    setDansPanier(true)
-    setAjoute(true)
-    setTimeout(() => setAjoute(false), 2000)
-  }
-
   const reduction = produit.prix_ancien
     ? Math.round((1 - produit.prix / produit.prix_ancien) * 100)
     : null
 
   return (
-    <Link href={`/produits/${produit.id}`} className={`card group hover:shadow-md transition-shadow block ${dansPanier ? 'ring-2 ring-green-500' : ''}`}>
+    <Link href={`/produits/${produit.id}`} className="card group hover:shadow-md transition-shadow block">
       {/* Image */}
       <div className="relative overflow-hidden h-40 bg-beton rounded-t-lg flex items-center justify-center">
         {produit.image_url ? (
@@ -101,20 +85,21 @@ export function CarteProduit({ produit }: { produit: Produit }) {
           <span className="text-xs text-gray-400">/{produit.unite}</span>
         </div>
 
-        <button
-          onClick={ajouterAuPanier}
-          disabled={produit.stock === 0}
+        {/* Petite marque de rappel : produit déjà dans le panier */}
+        {dansPanier && (
+          <p className="text-xs text-green-600 font-medium mb-1.5 flex items-center gap-1">
+            <Check size={13}/> Déjà dans votre panier
+          </p>
+        )}
+
+        {/* Choisir où acheter (mène à la page produit pour choisir le partenaire) */}
+        <div
           className={`w-full flex items-center justify-center gap-2 py-2 rounded text-xs font-semibold transition-colors ${
-            ajoute ? 'bg-green-600 text-white' :
-            produit.stock === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
-            dansPanier ? 'bg-green-50 text-green-700 border border-green-600 hover:bg-green-100' :
-            'bg-acier text-white hover:bg-brique'
+            produit.stock === 0 ? 'bg-gray-100 text-gray-400' : 'bg-acier text-white group-hover:bg-brique'
           }`}>
           <ShoppingCart size={14}/>
-          {ajoute ? '✓ Ajouté !' :
-           produit.stock === 0 ? 'Indisponible' :
-           dansPanier ? '✓ Dans le panier' : 'Ajouter au panier'}
-        </button>
+          {produit.stock === 0 ? 'Indisponible' : 'Choisir où acheter'}
+        </div>
       </div>
     </Link>
   )

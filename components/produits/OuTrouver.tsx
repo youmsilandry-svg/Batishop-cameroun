@@ -21,8 +21,27 @@ export function OuTrouver({ produit }: { produit: Produit }) {
   const [loading, setLoading] = useState(false)
   const [qtes, setQtes] = useState<Record<string, number>>({})
   const [ajoute, setAjoute] = useState('')
+  const [pvDansPanier, setPvDansPanier] = useState<Set<string>>(new Set())
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null)
   const [geo, setGeo] = useState<'idle' | 'asking' | 'ok' | 'refused' | 'unsupported'>('idle')
+
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        const items = JSON.parse(localStorage.getItem('batishop_panier') || '[]')
+        setPvDansPanier(new Set(items.filter((a: any) => a.produit?.id === produit.id).map((a: any) => a.point_vente_id)))
+      } catch { setPvDansPanier(new Set()) }
+    }
+    refresh()
+    window.addEventListener('panier-updated', refresh)
+    window.addEventListener('storage', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('panier-updated', refresh)
+      window.removeEventListener('storage', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [produit.id])
 
   useEffect(() => {
     supabase.from('prix_moyen_partenaires')
@@ -148,8 +167,8 @@ export function OuTrouver({ produit }: { produit: Produit }) {
                 className="w-14 text-center py-1 text-sm font-medium border-x focus:outline-none" style={{ MozAppearance: 'textfield' }}/>
               <button onClick={() => setQte('batishop', qteDe('batishop') + 1, 999)} className="px-2 py-1 hover:bg-beton text-acier"><Plus size={13}/></button>
             </div>
-            <button onClick={ajouterBatishop} className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${ajoute === 'batishop' ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
-              {ajoute === 'batishop' ? <><Check size={15}/> Ajouté</> : <><ShoppingCart size={15}/> Ajouter au panier</>}
+            <button onClick={ajouterBatishop} className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${ajoute === 'batishop' || pvDansPanier.has('batishop') ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
+              {ajoute === 'batishop' || pvDansPanier.has('batishop') ? <><Check size={15}/> Dans le panier</> : <><ShoppingCart size={15}/> Ajouter au panier</>}
             </button>
           </div>
         </div>
@@ -210,8 +229,8 @@ export function OuTrouver({ produit }: { produit: Produit }) {
                         <Phone size={15}/> Appeler pour le prix
                       </a>
                     ) : (
-                      <button onClick={() => ajouter(s)} className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${ajoute === mag.id ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
-                        {ajoute === mag.id ? <><Check size={15}/> Ajouté</> : <><ShoppingCart size={15}/> Ajouter</>}
+                      <button onClick={() => ajouter(s)} className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${ajoute === mag.id || pvDansPanier.has(mag.id) ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
+                        {ajoute === mag.id || pvDansPanier.has(mag.id) ? <><Check size={15}/> Dans le panier</> : <><ShoppingCart size={15}/> Ajouter</>}
                       </button>
                     )}
                   </div>
