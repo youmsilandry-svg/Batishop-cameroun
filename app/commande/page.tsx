@@ -73,33 +73,37 @@ export default function PageCommande() {
 
       const lat = parseFloat(form.latitude), lng = parseFloat(form.longitude)
       const gpsOk = !isNaN(lat) && !isNaN(lng)
-      // 1) Commande globale
-      const { data: cmd, error: e1 } = await supabase.from('commandes').insert({
+      // 1) Commande globale — id généré côté client (pas de relecture nécessaire)
+      const cmdId = crypto.randomUUID()
+      const { error: e1 } = await supabase.from('commandes').insert({
+        id: cmdId,
         numero, user_id: userId, client_nom: form.nom, client_telephone: form.telephone, client_email: form.email || null,
         client_ville: form.ville, client_adresse: form.adresse || '—', notes: form.notes || null,
         client_latitude: gpsOk ? lat : null, client_longitude: gpsOk ? lng : null,
         articles: articlesSnapshot,
         total_produits: total, total_livraison: totalLivraison, total: grandTotal,
         statut: 'en_attente', paiement_methode: form.paiement, paiement_statut: 'en_attente',
-      }).select('id').single()
-      if (e1 || !cmd) throw e1 || new Error('commande')
+      })
+      if (e1) throw e1
 
       // 2) Sous-commandes + lignes (1 par partenaire)
       for (let i = 0; i < parPartenaire.length; i++) {
         const g = parPartenaire[i]
         const mode = modeDe(g)
         const frais = fraisDe(g)
-        const { data: sc, error: e2 } = await supabase.from('sous_commandes').insert({
-          commande_id: cmd.id, point_vente_id: g.point_vente_id === 'batishop' ? null : g.point_vente_id,
+        const scId = crypto.randomUUID()
+        const { error: e2 } = await supabase.from('sous_commandes').insert({
+          id: scId,
+          commande_id: cmdId, point_vente_id: g.point_vente_id === 'batishop' ? null : g.point_vente_id,
           numero: `${numero}-${String.fromCharCode(65 + i)}`,
           mode, adresse_livraison: mode === 'livraison' ? (form.adresse + (gpsOk ? ` — 📍 https://maps.google.com/?q=${lat},${lng}` : '')) : null,
           frais_livraison: frais, sous_total: g.sousTotal, total: g.sousTotal + frais,
           statut: 'en_attente', paiement_statut: 'en_attente',
-        }).select('id').single()
-        if (e2 || !sc) throw e2 || new Error('sous_commande')
+        })
+        if (e2) throw e2
 
         const lignes = g.lignes.map(a => ({
-          sous_commande_id: sc.id, produit_id: a.produit.id, nom: a.produit.nom,
+          sous_commande_id: scId, produit_id: a.produit.id, nom: a.produit.nom,
           prix_unitaire: a.prix_unitaire, quantite: a.quantite, unite: a.produit.unite,
           sous_total: a.prix_unitaire * a.quantite,
         }))
