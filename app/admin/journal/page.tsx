@@ -52,8 +52,8 @@ export default function AdminJournal() {
       <main style={S.main}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <h1 style={{ fontFamily: '"Roboto Condensed", sans-serif', fontWeight: 700, fontSize: 26, color: '#1A2332', margin: 0 }}>📜 Journal des actions</h1>
-            <div style={{ fontSize: 13, color: '#888' }}>{logs.length} action(s) enregistrée(s) · 300 dernières</div>
+            <h1 style={{ fontFamily: '"Roboto Condensed", sans-serif', fontWeight: 700, fontSize: 26, color: '#1A2332', margin: 0 }}>📜 Mes actions</h1>
+            <div style={{ fontSize: 13, color: '#888' }}>{logs.length} action(s) · vos 300 dernières actions</div>
           </div>
           <button onClick={charger} style={{ padding: '8px 14px', background: '#1A2332', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>↻ Rafraîchir</button>
         </div>
