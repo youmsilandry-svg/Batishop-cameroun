@@ -3,6 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
 const ROTATION_JOURS = 90 // rappel de changement de mot de passe (≈ 3 mois)
+const IDLE_MS = 10 * 60 * 1000          // déconnexion après 10 min d'inactivité
+const MAX_SESSION_MS = 8 * 60 * 60 * 1000 // durée max d'une session : 8 h
+const CHECK_MS = 15 * 1000              // fréquence de vérification
+const LS_LAST = 'admin_last_activity'
+const LS_START = 'admin_session_start'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [etat, setEtat] = useState<'check' | 'login' | 'refuse' | 'ok'>('check')
@@ -27,6 +32,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     const { data: adm } = await supabase.from('admins').select('email, password_changed_at').eq('email', user.email).maybeSingle()
     if (adm) {
+      // Session périmée : revenu après fermeture/veille au-delà de l'inactivité, ou session trop ancienne
+      if (typeof window !== 'undefined') {
+        const last = Number(localStorage.getItem(LS_LAST) || 0)
+        const start = Number(localStorage.getItem(LS_START) || 0)
+        const now = Date.now()
+        if ((last && now - last > IDLE_MS) || (start && now - start > MAX_SESSION_MS)) {
+          await supabase.auth.signOut()
+          localStorage.removeItem('batishop_admin_auth')
+          localStorage.removeItem(LS_LAST); localStorage.removeItem(LS_START)
+          setEtat('login'); return
+        }
+      }
       if (typeof window !== 'undefined') localStorage.setItem('batishop_admin_auth', '1')
       setAdminEmail(user.email || '')
       const ref = adm.password_changed_at ? new Date(adm.password_changed_at).getTime() : 0
@@ -40,7 +57,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     verifier()
-    const { data: sub } = supabase.auth.onAuthStateChange(() => verifier())
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' && typeof window !== 'undefined') {
+        const now = String(Date.now())
+        localStorage.setItem(LS_LAST, now)
+        localStorage.setItem(LS_START, now)
+      }
+      verifier()
+    })
     return () => sub.subscription.unsubscribe()
   }, [])
 
@@ -55,7 +79,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const deconnexion = async () => {
     await supabase.auth.signOut()
-    if (typeof window !== 'undefined') localStorage.removeItem('batishop_admin_auth')
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('batishop_admin_auth')
+      localStorage.removeItem(LS_LAST)
+      localStorage.removeItem(LS_START)
+    }
     setEtat('login')
   }
 
@@ -85,35 +113,53 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [])
 
-  // Déconnexion automatique après inactivité (et au réveil de l'ordinateur)
+  // Déconnexion automatique : inactivité 10 min, réveil de veille, durée max de session.
   useEffect(() => {
     if (etat !== 'ok') return
-    const TIMEOUT = 30 * 60 * 1000 // 30 minutes — ajuste si besoin
-    let last = Date.now()
-    const reset = () => { last = Date.now() }
+    if (typeof window === 'undefined') return
+    const now0 = Date.now()
+    if (!localStorage.getItem(LS_START)) localStorage.setItem(LS_START, String(now0))
+    localStorage.setItem(LS_LAST, String(now0))
+
+    let lastWrite = now0
+    const mark = () => {
+      const now = Date.now()
+      if (now - lastWrite > 5000) { localStorage.setItem(LS_LAST, String(now)); lastWrite = now }
+    }
     const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click']
-    events.forEach(e => window.addEventListener(e, reset, { passive: true }))
-    const check = () => { if (Date.now() - last > TIMEOUT) deconnexion() }
-    const id = window.setInterval(check, 30 * 1000)
+    events.forEach(e => window.addEventListener(e, mark, { passive: true }))
+
+    const check = () => {
+      const now = Date.now()
+      const last = Number(localStorage.getItem(LS_LAST) || now)
+      const start = Number(localStorage.getItem(LS_START) || now)
+      if (now - last > IDLE_MS || now - start > MAX_SESSION_MS) {
+        deconnexion()
+      }
+    }
+    const id = window.setInterval(check, CHECK_MS)
     const onVis = () => { if (document.visibilityState === 'visible') check() }
     document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('focus', check)
+
     return () => {
-      events.forEach(e => window.removeEventListener(e, reset))
+      events.forEach(e => window.removeEventListener(e, mark))
       window.clearInterval(id)
       document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('focus', check)
     }
   }, [etat])
 
   if (etat === 'ok') return (
     <>
-      <div style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #eee', borderRadius: 999, padding: '6px 8px 6px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ position: 'fixed', bottom: 16, left: 16, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #eee', borderRadius: 999, padding: '6px 8px 6px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <span style={{ fontSize: 12, color: '#888', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={adminEmail}>{adminEmail}</span>
         <button onClick={() => { setShowChangePwd(true); setPwdMsg('') }} title="Changer le mot de passe" style={{ background: '#F2EDE8', color: '#1A2332', border: 'none', borderRadius: 999, padding: '6px 10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🔑</button>
         <button onClick={deconnexion} style={{ background: '#C0392B', color: '#fff', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Déconnexion</button>
       </div>
 
       {needRotation && !showChangePwd && (
-        <div style={{ position: 'fixed', bottom: 70, right: 16, zIndex: 9998, maxWidth: 300, background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: '10px 14px', fontSize: 12, color: '#8a6d00', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ position: 'fixed', bottom: 70, left: 16, zIndex: 9998, maxWidth: 300, background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: '10px 14px', fontSize: 12, color: '#8a6d00', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', fontFamily: 'Inter, system-ui, sans-serif' }}>
           🔒 Votre mot de passe date de plus de 3 mois.{' '}
           <button onClick={() => setShowChangePwd(true)} style={{ background: 'none', border: 'none', color: '#C0392B', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Le changer</button>
         </div>
