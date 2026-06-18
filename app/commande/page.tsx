@@ -111,6 +111,15 @@ export default function PageCommande() {
         if (e3) throw e3
       }
 
+      // Sauvegarde locale pour l'impression sur la page de confirmation
+      try {
+        localStorage.setItem('batishop_last_order', JSON.stringify({
+          numero, nom: form.nom, total: grandTotal, totalLivraison,
+          articles: articlesSnapshot, paiement: form.paiement,
+          ville: form.ville, adresse: form.adresse, date: new Date().toISOString(),
+        }))
+      } catch {}
+
       // Email de confirmation au client (si email fourni) — sans bloquer la suite
       if (form.email) {
         fetch('/api/send-order-email', {

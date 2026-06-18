@@ -14,12 +14,7 @@ async function sbFetch(table: string, opts: any = {}) {
   const to = from + perPage - 1
   const url = `${SUPABASE_URL}/rest/v1/${table}?select=*&order=${orderBy}.desc&offset=${from}&limit=${perPage}`
   const res = await fetch(url, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'count=exact',
-    }
+    headers: await adminHeaders({ 'Prefer': 'count=exact' })
   })
   const total = parseInt(res.headers.get('content-range')?.split('/')[1] || '0')
   const data = await res.json()
@@ -28,7 +23,7 @@ async function sbFetch(table: string, opts: any = {}) {
 
 async function sbCount(table: string) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'count=exact', 'Range': '0-0' }
+    headers: await adminHeaders({ 'Prefer': 'count=exact', 'Range': '0-0' })
   })
   return parseInt(res.headers.get('content-range')?.split('/')[1] || '0')
 }
