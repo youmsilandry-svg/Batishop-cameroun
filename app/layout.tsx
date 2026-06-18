@@ -17,9 +17,33 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        name: 'BatiShop Cameroun',
+        url: 'https://batishop-cameroun.com',
+        logo: 'https://batishop-cameroun.com/icon.svg',
+        description: 'Matériaux de construction en ligne au Cameroun : maçonnerie, plomberie, électricité, carrelage, énergie solaire.',
+        areaServed: 'CM',
+      },
+      {
+        '@type': 'WebSite',
+        name: 'BatiShop Cameroun',
+        url: 'https://batishop-cameroun.com',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: 'https://batishop-cameroun.com/produits?q={search_term_string}',
+          'query-input': 'required name=search_term_string',
+        },
+      },
+    ],
+  }
   return (
     <html lang="fr">
       <body>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
