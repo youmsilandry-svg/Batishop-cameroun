@@ -1,15 +1,12 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
+import { apiAdmin as api } from '../../../lib/adminApi'
 
 const BASE = process.env.NEXT_PUBLIC_SUPABASE_URL||''
 const KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||''
 const PWD  = process.env.NEXT_PUBLIC_ADMIN_PASSWORD||'admin123'
 
-const api = async (path: string, opts: any = {}) => {
-  const res = await fetch(`${BASE}/rest/v1/${path}`, { ...opts, headers: {'apikey':KEY,'Authorization':`Bearer ${KEY}`,'Content-Type':'application/json','Prefer':'return=representation',...(opts.headers||{})}})
-  return res.ok ? res.json().catch(()=>null) : null
-}
 
 const S: any = {
   btn: (bg='#C0392B',c='#fff') => ({ padding:'7px 14px', background:bg, color:c, border:bg==='#fff'?'1px solid #ddd':'none', borderRadius:8, cursor:'pointer', fontWeight:600, fontSize:12, fontFamily:'inherit' }),

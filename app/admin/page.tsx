@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
+import { adminHeaders } from '../../lib/adminApi'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -35,7 +36,7 @@ async function sbCount(table: string) {
 async function sbInsert(table: string, row: any) {
   await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST',
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    headers: await adminHeaders({ 'Prefer': 'return=minimal' }),
     body: JSON.stringify(row)
   })
 }
@@ -43,7 +44,7 @@ async function sbInsert(table: string, row: any) {
 async function sbUpdate(table: string, id: string, row: any) {
   await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
     method: 'PATCH',
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    headers: await adminHeaders({ 'Prefer': 'return=minimal' }),
     body: JSON.stringify(row)
   })
 }
@@ -51,7 +52,7 @@ async function sbUpdate(table: string, id: string, row: any) {
 async function sbDelete(table: string, id: string) {
   await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
     method: 'DELETE',
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    headers: await adminHeaders()
   })
 }
 
