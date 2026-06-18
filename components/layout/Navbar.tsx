@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ShoppingCart, User, Heart, Search, Menu, X, Phone, ChevronRight, ChevronDown } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
 const MENU_CATEGORIES = [
   {
@@ -45,8 +46,47 @@ export function Navbar() {
   const [dropdownOuvert, setDropdownOuvert] = useState(false)
   const [categorieActive, setCategorieActive] = useState(MENU_CATEGORIES[0])
   const [nbArticles, setNbArticles] = useState(0)
+  const [user, setUser] = useState<any>(null)
+  const [displayName, setDisplayName] = useState('')
+  const [compteOuvert, setCompteOuvert] = useState(false)
+  const compteRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    let actif = true
+    const charger = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!actif) return
+      setUser(user)
+      if (user) {
+        const { data: prof } = await supabase.from('profils').select('nom').eq('id', user.id).maybeSingle()
+        setDisplayName(prof?.nom || user.user_metadata?.full_name || user.user_metadata?.name || (user.email ? user.email.split('@')[0] : 'Mon compte'))
+      } else {
+        setDisplayName('')
+      }
+    }
+    charger()
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user || null)
+      if (session?.user) charger(); else setDisplayName('')
+    })
+    return () => { actif = false; sub.subscription.unsubscribe() }
+  }, [])
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (compteRef.current && !compteRef.current.contains(e.target as Node)) setCompteOuvert(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [])
+
+  const deconnexion = async () => {
+    await supabase.auth.signOut()
+    setCompteOuvert(false)
+    router.push('/')
+  }
 
   useEffect(() => {
     const update = () => {
@@ -172,9 +212,30 @@ export function Navbar() {
           </form>
 
           <div className="flex items-center gap-3 ml-auto">
-            <Link href="/compte" className="hidden md:flex flex-col items-center text-xs text-acier hover:text-brique">
-              <User size={20}/> Compte
-            </Link>
+            {user ? (
+              <div ref={compteRef} className="hidden md:block relative">
+                <button onClick={() => setCompteOuvert(o => !o)} className="flex flex-col items-center text-xs text-acier hover:text-brique">
+                  <User size={20}/>
+                  <span className="max-w-[90px] truncate">{displayName || 'Mon compte'}</span>
+                </button>
+                {compteOuvert && (
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-50">
+                    <div className="px-4 py-2 border-b border-gray-50">
+                      <div className="text-xs text-gray-400">Connecté en tant que</div>
+                      <div className="text-sm font-semibold text-acier truncate">{displayName}</div>
+                    </div>
+                    <Link href="/compte/dashboard" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mon compte</Link>
+                    <Link href="/compte/commandes" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mes commandes</Link>
+                    <Link href="/compte/profil" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mon profil</Link>
+                    <button onClick={deconnexion} className="block w-full text-left px-4 py-2.5 text-sm text-brique hover:bg-beton border-t border-gray-50">Déconnexion</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link href="/compte" className="hidden md:flex flex-col items-center text-xs text-acier hover:text-brique">
+                <User size={20}/> Compte
+              </Link>
+            )}
             <Link href="/panier" className="flex flex-col items-center text-xs text-brique relative">
               <ShoppingCart size={22}/>
               {nbArticles > 0 && (
