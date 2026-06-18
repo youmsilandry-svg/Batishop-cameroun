@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 
 const ROTATION_JOURS = 90 // rappel de changement de mot de passe (≈ 3 mois)
@@ -22,7 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [newPwd2, setNewPwd2] = useState('')
   const [pwdMsg, setPwdMsg] = useState('')
   const [pwdBusy, setPwdBusy] = useState(false)
-  const armedRef = useRef(false)
+  const [menuOuvert, setMenuOuvert] = useState(false)
 
   const verifier = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -100,19 +101,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setTimeout(() => { setShowChangePwd(false); setPwdMsg('') }, 1500)
   }
 
-  // Quitter l'espace admin (naviguer ailleurs / fermer) → déconnexion automatique.
-  // armedRef évite un faux déclenchement au tout premier montage (mode dev).
-  useEffect(() => {
-    const t = setTimeout(() => { armedRef.current = true }, 1500)
-    return () => {
-      clearTimeout(t)
-      if (armedRef.current) {
-        if (typeof window !== 'undefined') localStorage.removeItem('batishop_admin_auth')
-        supabase.auth.signOut()
-      }
-    }
-  }, [])
-
   // Déconnexion automatique : inactivité 10 min, réveil de veille, durée max de session.
   useEffect(() => {
     if (etat !== 'ok') return
@@ -152,18 +140,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (etat === 'ok') return (
     <>
-      <div style={{ position: 'fixed', bottom: 16, left: 16, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #eee', borderRadius: 999, padding: '6px 8px 6px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <span style={{ fontSize: 12, color: '#888', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={adminEmail}>{adminEmail}</span>
-        <button onClick={() => { setShowChangePwd(true); setPwdMsg('') }} title="Changer le mot de passe" style={{ background: '#F2EDE8', color: '#1A2332', border: 'none', borderRadius: 999, padding: '6px 10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🔑</button>
-        <button onClick={deconnexion} style={{ background: '#C0392B', color: '#fff', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Déconnexion</button>
+      <div style={{ position: 'fixed', bottom: 16, left: 16, zIndex: 9999, fontFamily: 'Inter, system-ui, sans-serif' }}>
+        {menuOuvert && (
+          <div style={{ position: 'absolute', bottom: 52, left: 0, width: 240, background: '#fff', border: '1px solid #eee', borderRadius: 14, boxShadow: '0 8px 30px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #f3f3f3' }}>
+              <div style={{ fontSize: 11, color: '#999' }}>Connecté en tant que</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1A2332', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={adminEmail}>{adminEmail}</div>
+            </div>
+            {needRotation && (
+              <div style={{ padding: '10px 16px', background: '#fff8e1', fontSize: 12, color: '#8a6d00', borderBottom: '1px solid #f3f3f3' }}>
+                🔒 Mot de passe &gt; 3 mois — à changer
+              </div>
+            )}
+            <button onClick={() => { setShowChangePwd(true); setMenuOuvert(false); setPwdMsg('') }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 16px', background: 'none', border: 'none', fontSize: 13, color: '#1A2332', cursor: 'pointer' }}>🔑 Changer le mot de passe</button>
+            <Link href="/admin/journal" onClick={() => setMenuOuvert(false)}
+              style={{ display: 'block', padding: '11px 16px', fontSize: 13, color: '#1A2332', textDecoration: 'none' }}>📜 Journal des actions</Link>
+            <button onClick={deconnexion}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 16px', background: 'none', border: 'none', borderTop: '1px solid #f3f3f3', fontSize: 13, fontWeight: 700, color: '#C0392B', cursor: 'pointer' }}>🚪 Déconnexion</button>
+          </div>
+        )}
+        <button onClick={() => setMenuOuvert(o => !o)}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, background: needRotation ? '#fff8e1' : '#fff', border: `1px solid ${needRotation ? '#ffe082' : '#eee'}`, borderRadius: 999, padding: '8px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', cursor: 'pointer', fontFamily: 'inherit' }}>
+          <span style={{ width: 26, height: 26, borderRadius: '50%', background: '#1A2332', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
+            {(adminEmail[0] || 'A').toUpperCase()}
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#1A2332', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{adminEmail}</span>
+          <span style={{ fontSize: 11, color: '#999', transform: menuOuvert ? 'rotate(180deg)' : 'none' }}>▲</span>
+        </button>
       </div>
-
-      {needRotation && !showChangePwd && (
-        <div style={{ position: 'fixed', bottom: 70, left: 16, zIndex: 9998, maxWidth: 300, background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: '10px 14px', fontSize: 12, color: '#8a6d00', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-          🔒 Votre mot de passe date de plus de 3 mois.{' '}
-          <button onClick={() => setShowChangePwd(true)} style={{ background: 'none', border: 'none', color: '#C0392B', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Le changer</button>
-        </div>
-      )}
 
       {showChangePwd && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: 'Inter, system-ui, sans-serif' }}>

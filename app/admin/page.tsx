@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
-import { adminHeaders } from '../../lib/adminApi'
+import { adminHeaders, logAdmin } from '../../lib/adminApi'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -39,6 +39,7 @@ async function sbInsert(table: string, row: any) {
     headers: await adminHeaders({ 'Prefer': 'return=minimal' }),
     body: JSON.stringify(row)
   })
+  logAdmin('POST', table, { row })
 }
 
 async function sbUpdate(table: string, id: string, row: any) {
@@ -47,6 +48,7 @@ async function sbUpdate(table: string, id: string, row: any) {
     headers: await adminHeaders({ 'Prefer': 'return=minimal' }),
     body: JSON.stringify(row)
   })
+  logAdmin('PATCH', table, { id, row })
 }
 
 async function sbDelete(table: string, id: string) {
@@ -54,6 +56,7 @@ async function sbDelete(table: string, id: string) {
     method: 'DELETE',
     headers: await adminHeaders()
   })
+  logAdmin('DELETE', table, { id })
 }
 
 const TABLES = [
