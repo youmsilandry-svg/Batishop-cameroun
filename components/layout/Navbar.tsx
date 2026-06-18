@@ -226,6 +226,7 @@ export function Navbar() {
                     </div>
                     <Link href="/compte/dashboard" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mon compte</Link>
                     <Link href="/compte/commandes" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mes commandes</Link>
+                    <Link href="/compte/favoris" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mes favoris</Link>
                     <Link href="/compte/profil" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mon profil</Link>
                     <button onClick={deconnexion} className="block w-full text-left px-4 py-2.5 text-sm text-brique hover:bg-beton border-t border-gray-50">Déconnexion</button>
                   </div>
