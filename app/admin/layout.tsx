@@ -1,6 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+
+const ROTATION_JOURS = 90 // rappel de changement de mot de passe (≈ 3 mois)
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [etat, setEtat] = useState<'check' | 'login' | 'refuse' | 'ok'>('check')
@@ -9,6 +11,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [pwd, setPwd] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [needRotation, setNeedRotation] = useState(false)
+  const [showChangePwd, setShowChangePwd] = useState(false)
+  const [newPwd, setNewPwd] = useState('')
+  const [newPwd2, setNewPwd2] = useState('')
+  const [pwdMsg, setPwdMsg] = useState('')
+  const [pwdBusy, setPwdBusy] = useState(false)
+  const armedRef = useRef(false)
 
   const verifier = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -16,10 +25,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (typeof window !== 'undefined') localStorage.removeItem('batishop_admin_auth')
       setEtat('login'); return
     }
-    const { data: adm } = await supabase.from('admins').select('email').eq('email', user.email).maybeSingle()
+    const { data: adm } = await supabase.from('admins').select('email, password_changed_at').eq('email', user.email).maybeSingle()
     if (adm) {
       if (typeof window !== 'undefined') localStorage.setItem('batishop_admin_auth', '1')
       setAdminEmail(user.email || '')
+      const ref = adm.password_changed_at ? new Date(adm.password_changed_at).getTime() : 0
+      setNeedRotation(!ref || (Date.now() - ref) > ROTATION_JOURS * 24 * 60 * 60 * 1000)
       setEtat('ok')
     } else {
       if (typeof window !== 'undefined') localStorage.removeItem('batishop_admin_auth')
@@ -48,6 +59,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setEtat('login')
   }
 
+  const changerMdp = async () => {
+    setPwdMsg('')
+    if (newPwd.length < 8) { setPwdMsg('8 caractères minimum'); return }
+    if (newPwd !== newPwd2) { setPwdMsg('Les deux mots de passe ne correspondent pas'); return }
+    setPwdBusy(true)
+    const { error } = await supabase.auth.updateUser({ password: newPwd })
+    if (error) { setPwdMsg('Erreur : ' + error.message); setPwdBusy(false); return }
+    await supabase.from('admins').update({ password_changed_at: new Date().toISOString() }).eq('email', adminEmail)
+    setPwdMsg('✓ Mot de passe mis à jour')
+    setNewPwd(''); setNewPwd2(''); setNeedRotation(false); setPwdBusy(false)
+    setTimeout(() => { setShowChangePwd(false); setPwdMsg('') }, 1500)
+  }
+
+  // Quitter l'espace admin (naviguer ailleurs / fermer) → déconnexion automatique.
+  // armedRef évite un faux déclenchement au tout premier montage (mode dev).
+  useEffect(() => {
+    const t = setTimeout(() => { armedRef.current = true }, 1500)
+    return () => {
+      clearTimeout(t)
+      if (armedRef.current) {
+        if (typeof window !== 'undefined') localStorage.removeItem('batishop_admin_auth')
+        supabase.auth.signOut()
+      }
+    }
+  }, [])
+
   // Déconnexion automatique après inactivité (et au réveil de l'ordinateur)
   useEffect(() => {
     if (etat !== 'ok') return
@@ -69,10 +106,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (etat === 'ok') return (
     <>
-      <div style={{ position: 'fixed', top: 10, right: 12, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10, background: '#fff', border: '1px solid #eee', borderRadius: 999, padding: '6px 8px 6px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.08)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <span style={{ fontSize: 12, color: '#888', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={adminEmail}>{adminEmail}</span>
+      <div style={{ position: 'fixed', top: 10, right: 12, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #eee', borderRadius: 999, padding: '6px 8px 6px 14px', boxShadow: '0 4px 14px rgba(0,0,0,0.08)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <span style={{ fontSize: 12, color: '#888', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={adminEmail}>{adminEmail}</span>
+        <button onClick={() => { setShowChangePwd(true); setPwdMsg('') }} title="Changer le mot de passe" style={{ background: '#F2EDE8', color: '#1A2332', border: 'none', borderRadius: 999, padding: '6px 10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🔑</button>
         <button onClick={deconnexion} style={{ background: '#C0392B', color: '#fff', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Déconnexion</button>
       </div>
+
+      {needRotation && !showChangePwd && (
+        <div style={{ position: 'fixed', top: 56, right: 12, zIndex: 9998, maxWidth: 300, background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: '10px 14px', fontSize: 12, color: '#8a6d00', boxShadow: '0 4px 14px rgba(0,0,0,0.08)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+          🔒 Votre mot de passe date de plus de 3 mois.{' '}
+          <button onClick={() => setShowChangePwd(true)} style={{ background: 'none', border: 'none', color: '#C0392B', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Le changer</button>
+        </div>
+      )}
+
+      {showChangePwd && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: 'Inter, system-ui, sans-serif' }}>
+          <div style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.15)' }}>
+            <div style={{ fontWeight: 700, fontSize: 17, color: '#1A2332', marginBottom: 14 }}>Changer le mot de passe</div>
+            {pwdMsg && <div style={{ background: pwdMsg.startsWith('✓') ? '#e7f6e7' : '#fde8e8', color: pwdMsg.startsWith('✓') ? '#15803d' : '#b91c1c', borderRadius: 10, padding: '9px 12px', fontSize: 13, marginBottom: 12 }}>{pwdMsg}</div>}
+            <input type="password" placeholder="Nouveau mot de passe (8+ caractères)" value={newPwd} onChange={e => setNewPwd(e.target.value)}
+              style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #ddd', borderRadius: 10, fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
+            <input type="password" placeholder="Confirmer le nouveau mot de passe" value={newPwd2} onChange={e => setNewPwd2(e.target.value)}
+              style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #ddd', borderRadius: 10, fontSize: 14, marginBottom: 14, boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { setShowChangePwd(false); setPwdMsg(''); setNewPwd(''); setNewPwd2('') }} style={{ flex: 1, padding: '11px', background: '#eee', color: '#555', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Annuler</button>
+              <button onClick={changerMdp} disabled={pwdBusy} style={{ flex: 1, padding: '11px', background: pwdBusy ? '#ccc' : '#C0392B', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: pwdBusy ? 'default' : 'pointer' }}>{pwdBusy ? '…' : 'Valider'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {children}
     </>
   )
