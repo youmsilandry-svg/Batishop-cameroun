@@ -10,6 +10,7 @@ export default function PageCommande() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [envoi, setEnvoi] = useState(false)
+  const [commandeOk, setCommandeOk] = useState(false)
   const [erreur, setErreur] = useState('')
   const [modes, setModes] = useState<Record<string, 'retrait' | 'livraison'>>({})
   const [form, setForm] = useState({ nom: '', telephone: '', email: '', ville: 'Douala', adresse: '', notes: '', paiement: 'reception' as 'reception' | 'en_ligne', latitude: '', longitude: '' })
@@ -45,6 +46,7 @@ export default function PageCommande() {
   }
 
   if (!mounted) return null
+  if (commandeOk) return null
   if (parPartenaire.length === 0) { router.push('/panier'); return null }
 
   const modeDe = (g: any) => modes[g.point_vente_id] || 'retrait'
@@ -134,8 +136,9 @@ export default function PageCommande() {
         }).catch(() => {})
       }
 
-      viderPanier()
+      setCommandeOk(true)
       router.push(`/commande/confirmation?num=${numero}`)
+      viderPanier()
     } catch (err) {
       console.error(err)
       setErreur('Une erreur est survenue. Réessayez ou appelez-nous.')
