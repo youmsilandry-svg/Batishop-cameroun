@@ -1,105 +1,98 @@
 import Link from 'next/link'
+import { supabase } from '../lib/supabase'
+import { CarteProduit } from '../components/produits/CarteProduit'
 
 const CATEGORIES = [
-  { id: 'maconnerie',     label: 'Maçonnerie',     emoji: '🧱', count: '245 produits' },
-  { id: 'plomberie',      label: 'Plomberie',      emoji: '🔧', count: '189 produits' },
-  { id: 'electricite',    label: 'Électricité',    emoji: '⚡', count: '312 produits' },
-  { id: 'carrelage',      label: 'Carrelage',      emoji: '🪟', count: '156 produits' },
-  { id: 'photovoltaique', label: 'Solaire',        emoji: '☀️', count: '98 produits'  },
-  { id: 'menuiserie',     label: 'Menuiserie',     emoji: '🚪', count: '203 produits' },
-  { id: 'couverture',     label: 'Toiture',        emoji: '🏠', count: '134 produits' },
-  { id: 'outillage',      label: 'Outillage',      emoji: '🔨', count: '278 produits' },
-  { id: 'peinture',       label: 'Peinture',       emoji: '🎨', count: '167 produits' },
-  { id: 'assainissement', label: 'Assainissement', emoji: '💧', count: '89 produits'  },
-]
-
-const PROMOS = [
-  { nom: 'Ciment Portland CPA 42.5', cat: 'maconnerie', prix: 4500, ancien: 5200, emoji: '🧱', badge: 'Promo -13%' },
-  { nom: 'Panneau solaire 300W', cat: 'photovoltaique', prix: 87000, ancien: null, emoji: '☀️', badge: 'Solaire' },
-  { nom: 'Robinet mélangeur chromé', cat: 'plomberie', prix: 12000, ancien: 15000, emoji: '🔧', badge: 'Promo -20%' },
-  { nom: 'Carrelage 60x60 beige', cat: 'carrelage', prix: 12500, ancien: null, emoji: '🪟', badge: 'Nouveau' },
-  { nom: 'Câble électrique 2.5mm', cat: 'electricite', prix: 35000, ancien: null, emoji: '⚡', badge: 'Nouveau' },
-  { nom: 'Perceuse visseuse 18V', cat: 'outillage', prix: 45000, ancien: 55000, emoji: '🔨', badge: 'Promo -18%' },
+  { id: 'maconnerie',     label: 'Maçonnerie',     emoji: '🧱' },
+  { id: 'plomberie',      label: 'Plomberie',      emoji: '🔧' },
+  { id: 'electricite',    label: 'Électricité',    emoji: '⚡' },
+  { id: 'carrelage',      label: 'Carrelage',      emoji: '🪟' },
+  { id: 'photovoltaique', label: 'Solaire',        emoji: '☀️' },
+  { id: 'menuiserie',     label: 'Menuiserie',     emoji: '🚪' },
+  { id: 'couverture',     label: 'Toiture',        emoji: '🏠' },
+  { id: 'outillage',      label: 'Outillage',      emoji: '🔨' },
+  { id: 'peinture',       label: 'Peinture',       emoji: '🎨' },
+  { id: 'assainissement', label: 'Assainissement', emoji: '💧' },
 ]
 
 const UNIVERS = [
-  { label: 'Construire', emoji: '🏗️', desc: 'Gros oeuvre & Structure', href: '/produits?categorie=maconnerie', bg: 'from-slate-800 to-slate-600' },
+  { label: 'Construire', emoji: '🏗️', desc: 'Gros œuvre & Structure', href: '/produits?categorie=maconnerie', bg: 'from-slate-800 to-slate-600' },
   { label: 'Équiper', emoji: '⚡', desc: 'Électricité & Plomberie', href: '/produits?categorie=electricite', bg: 'from-yellow-700 to-yellow-500' },
   { label: 'Finir', emoji: '🎨', desc: 'Carrelage, Peinture & Décor', href: '/produits?categorie=carrelage', bg: 'from-orange-700 to-orange-500' },
   { label: 'Énergie Solaire', emoji: '☀️', desc: 'Autonomie énergétique', href: '/produits?categorie=photovoltaique', bg: 'from-amber-600 to-yellow-400' },
 ]
 
-function formatPrix(n) {
-  return new Intl.NumberFormat('fr-CM', { style: 'currency', currency: 'XAF', minimumFractionDigits: 0 }).format(n)
-}
+const CONSEILS = [
+  { titre: 'Calculer le béton d\'une dalle', desc: 'La méthode simple pour ne pas se tromper sur les quantités', emoji: '🧱', href: '/conseils#dalle' },
+  { titre: 'Bien choisir son carrelage', desc: 'Format, surface et résistance selon la pièce', emoji: '🪟', href: '/conseils#carrelage' },
+  { titre: 'Dimensionner son solaire', desc: 'Panneaux, batterie et onduleur : les bases', emoji: '☀️', href: '/conseils#solaire' },
+]
 
-export default function HomePage() {
+const SERVICES = [
+  { ico: '📋', titre: 'Devis professionnel', desc: 'Chiffrage rapide pour vos chantiers', href: '/devis' },
+  { ico: '🚚', titre: 'Livraison & tarifs', desc: 'Partout au Cameroun', href: '/aide/livraison' },
+  { ico: '🏬', titre: 'Retrait en magasin', desc: 'Chez nos quincailleries partenaires', href: '/disponible' },
+  { ico: '🤝', titre: 'Devenir partenaire', desc: 'Quincailleries & artisans', href: '/partenaires' },
+]
+
+export default async function HomePage() {
+  const { data: vedettes } = await supabase.from('produits')
+    .select('*').eq('actif', true).order('created_at', { ascending: false }).limit(10)
+  const { data: promos } = await supabase.from('produits')
+    .select('*').eq('actif', true).not('prix_ancien', 'is', null).order('created_at', { ascending: false }).limit(10)
+
   return (
     <div className="bg-beton min-h-screen">
 
-      {/* ===== HERO BANNER ===== */}
+      {/* HERO */}
       <section className="bg-acier text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5" style={{backgroundImage:'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)',backgroundSize:'20px 20px'}}></div>
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize: '20px 20px' }} />
         <div className="max-w-7xl mx-auto px-4 py-14 relative z-10">
           <div className="max-w-2xl">
-            <div className="inline-block bg-brique text-white text-xs font-bold px-3 py-1 rounded mb-4 uppercase tracking-widest">
-              N°1 au Cameroun
-            </div>
+            <div className="inline-block bg-brique text-white text-xs font-bold px-3 py-1 rounded mb-4 uppercase tracking-widest">N°1 au Cameroun</div>
             <h1 className="font-condensed font-bold text-4xl lg:text-5xl leading-tight mb-4">
-              Tout pour <span className="text-or">construire</span><br/>
-              votre projet
+              Tout pour <span className="text-or">construire</span><br />votre projet
             </h1>
             <p className="text-white/70 text-lg mb-8 leading-relaxed">
-              Matériaux de construction, plomberie, électricité, carrelage et énergie solaire.<br/>
-              Livraison 48h dans tout le Cameroun.
+              Matériaux de construction, plomberie, électricité, carrelage et énergie solaire.<br />
+              Comparez les prix des quincailleries près de chez vous.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link href="/produits" className="bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded transition-colors">
-                Explorer le catalogue →
-              </Link>
-              <Link href="/devis" className="border border-white/40 hover:border-white text-white font-medium px-6 py-3 rounded transition-colors">
-                Demander un devis
-              </Link>
+              <Link href="/produits" className="bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded transition-colors">Explorer le catalogue →</Link>
+              <Link href="/devis" className="border border-white/40 hover:border-white text-white font-medium px-6 py-3 rounded transition-colors">Demander un devis</Link>
             </div>
             <div className="flex gap-8 mt-10 pt-8 border-t border-white/10">
-              {[['5 000+','Produits'],['12','Villes livrées'],['48h','Délai moyen'],['98%','Satisfaits']].map(([n,l]) => (
-                <div key={l}>
-                  <div className="font-condensed font-bold text-2xl text-or">{n}</div>
-                  <div className="text-xs text-white/60 mt-0.5">{l}</div>
-                </div>
+              {[['640+', 'Produits'], ['12', 'Villes livrées'], ['Multi', 'Boutiques'], ['📱', 'Mobile Money']].map(([n, l]) => (
+                <div key={l}><div className="font-condensed font-bold text-2xl text-or">{n}</div><div className="text-xs text-white/60 mt-0.5">{l}</div></div>
               ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ===== BARRE CONFIANCE ===== */}
+      {/* BARRE CONFIANCE */}
       <section className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-4 grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             ['🚚', 'Livraison rapide', 'Douala & Yaoundé en 24h'],
             ['✅', 'Qualité garantie', 'Produits certifiés'],
             ['📱', 'Paiement mobile', 'Orange Money & MTN MoMo'],
-            ['📞', 'Support 7j/7', '+237 6XX XXX XXX'],
+            ['📞', 'Support 7j/7', 'À votre écoute'],
           ].map(([ico, titre, desc]) => (
             <div key={titre} className="flex items-center gap-3">
               <span className="text-2xl">{ico}</span>
-              <div>
-                <div className="font-semibold text-sm text-acier">{titre}</div>
-                <div className="text-xs text-gray-500">{desc}</div>
-              </div>
+              <div><div className="font-semibold text-sm text-acier">{titre}</div><div className="text-xs text-gray-500">{desc}</div></div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ===== UNIVERS ===== */}
+      {/* UNIVERS */}
       <section className="max-w-7xl mx-auto px-4 py-10">
         <h2 className="font-condensed font-bold text-2xl text-acier mb-6">Nos univers</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {UNIVERS.map(u => (
-            <Link key={u.label} href={u.href}
-              className={`bg-gradient-to-br ${u.bg} text-white rounded-xl p-6 hover:scale-105 transition-transform`}>
+            <Link key={u.label} href={u.href} className={`bg-gradient-to-br ${u.bg} text-white rounded-xl p-6 hover:scale-105 transition-transform`}>
               <div className="text-4xl mb-3">{u.emoji}</div>
               <div className="font-condensed font-bold text-xl">{u.label}</div>
               <div className="text-white/70 text-sm mt-1">{u.desc}</div>
@@ -109,30 +102,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ===== BANNER SOLAIRE ===== */}
-      <section className="max-w-7xl mx-auto px-4 mb-10">
-        <div className="bg-acier rounded-2xl overflow-hidden">
-          <div className="flex flex-col md:flex-row items-center justify-between p-8 gap-6">
-            <div>
-              <div className="text-or text-sm font-bold uppercase tracking-widest mb-2">Offre spéciale</div>
-              <h3 className="font-condensed font-bold text-2xl text-white mb-2">
-                Kits Solaires Complets ☀️
-              </h3>
-              <p className="text-white/70 text-sm mb-4">
-                Panneaux 300W, batteries, onduleurs — tout pour votre autonomie énergétique.<br/>
-                Économisez jusqu'à 20% sur les kits complets ce mois-ci.
-              </p>
-              <Link href="/produits?categorie=photovoltaique"
-                className="inline-block bg-or text-acier font-bold px-5 py-2.5 rounded hover:bg-or-light transition-colors text-sm">
-                Voir les offres solaires →
-              </Link>
-            </div>
-            <div className="text-8xl shrink-0">☀️</div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== CATEGORIES ===== */}
+      {/* CATEGORIES */}
       <section className="max-w-7xl mx-auto px-4 mb-10">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-condensed font-bold text-2xl text-acier">Toutes les catégories</h2>
@@ -140,74 +110,120 @@ export default function HomePage() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {CATEGORIES.map(cat => (
-            <Link key={cat.id} href={`/produits?categorie=${cat.id}`}
-              className="bg-white rounded-xl p-4 text-center hover:shadow-md hover:border-brique border-2 border-transparent transition-all group">
+            <Link key={cat.id} href={`/produits?categorie=${cat.id}`} className="bg-white rounded-xl p-4 text-center hover:shadow-md hover:border-brique border-2 border-transparent transition-all group">
               <div className="text-3xl mb-2">{cat.emoji}</div>
               <div className="font-semibold text-sm text-acier group-hover:text-brique">{cat.label}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{cat.count}</div>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* ===== PRODUITS VEDETTES ===== */}
+      {/* PRODUITS VEDETTES (réels) */}
+      {vedettes && vedettes.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 mb-10">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-condensed font-bold text-2xl text-acier">Nos produits</h2>
+            <Link href="/produits" className="text-sm text-brique font-medium hover:underline">Voir tout →</Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {vedettes.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} />)}
+          </div>
+        </section>
+      )}
+
+      {/* PROMOTIONS (réelles) */}
+      {promos && promos.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 mb-10">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-condensed font-bold text-2xl text-brique">🔥 Bons plans & promotions</h2>
+              <Link href="/produits" className="text-sm text-brique font-medium hover:underline">Tout voir →</Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {promos.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} />)}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* BANDEAU SOLAIRE */}
+      <section className="max-w-7xl mx-auto px-4 mb-10">
+        <div className="bg-acier rounded-2xl overflow-hidden">
+          <div className="flex flex-col md:flex-row items-center justify-between p-8 gap-6">
+            <div>
+              <div className="text-or text-sm font-bold uppercase tracking-widest mb-2">Offre spéciale</div>
+              <h3 className="font-condensed font-bold text-2xl text-white mb-2">Kits Solaires Complets ☀️</h3>
+              <p className="text-white/70 text-sm mb-4">Panneaux, batteries, onduleurs — tout pour votre autonomie énergétique.</p>
+              <Link href="/produits?categorie=photovoltaique" className="inline-block bg-or text-acier font-bold px-5 py-2.5 rounded hover:bg-or-light transition-colors text-sm">Voir les offres solaires →</Link>
+            </div>
+            <div className="text-8xl shrink-0">☀️</div>
+          </div>
+        </div>
+      </section>
+
+      {/* CONSEILS & IDÉES */}
       <section className="max-w-7xl mx-auto px-4 mb-10">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="font-condensed font-bold text-2xl text-acier">Produits vedettes</h2>
-          <Link href="/produits" className="text-sm text-brique font-medium hover:underline">Voir tout →</Link>
+          <div>
+            <h2 className="font-condensed font-bold text-2xl text-acier">Conseils & idées</h2>
+            <p className="text-sm text-gray-500">Nos guides pour réussir vos travaux</p>
+          </div>
+          <Link href="/conseils" className="text-sm text-brique font-medium hover:underline">Tous les conseils →</Link>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {PROMOS.map(p => (
-            <Link key={p.nom} href={`/produits?categorie=${p.cat}`}
-              className="bg-white rounded-xl overflow-hidden hover:shadow-md transition-shadow border border-gray-50 group">
-              <div className="h-28 bg-beton flex items-center justify-center text-5xl relative">
-                {p.emoji}
-                <span className="absolute top-2 left-2 bg-brique text-white text-xs font-bold px-2 py-0.5 rounded">
-                  {p.badge}
-                </span>
-              </div>
-              <div className="p-3">
-                <div className="text-xs font-medium text-acier leading-tight mb-2 line-clamp-2 group-hover:text-brique">{p.nom}</div>
-                <div className="font-condensed font-bold text-base text-brique">{formatPrix(p.prix)}</div>
-                {p.ancien && <div className="text-xs text-gray-400 line-through">{formatPrix(p.ancien)}</div>}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {CONSEILS.map(c => (
+            <Link key={c.titre} href={c.href} className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow group">
+              <div className="h-32 bg-gradient-to-br from-acier to-acier-light flex items-center justify-center text-5xl">{c.emoji}</div>
+              <div className="p-4">
+                <div className="font-bold text-acier group-hover:text-brique">{c.titre}</div>
+                <div className="text-sm text-gray-500 mt-1">{c.desc}</div>
+                <div className="text-xs font-bold text-brique mt-3">Lire le guide →</div>
               </div>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* ===== BANNER PRO ===== */}
+      {/* NOS SERVICES */}
+      <section className="max-w-7xl mx-auto px-4 mb-10">
+        <h2 className="font-condensed font-bold text-2xl text-acier mb-6">Nos services</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {SERVICES.map(s => (
+            <Link key={s.titre} href={s.href} className="bg-white rounded-xl p-5 border border-gray-100 hover:border-brique hover:shadow-md transition-all text-center group">
+              <div className="text-3xl mb-2">{s.ico}</div>
+              <div className="font-bold text-acier group-hover:text-brique text-sm">{s.titre}</div>
+              <div className="text-xs text-gray-500 mt-1">{s.desc}</div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* BANDEAU PRO */}
       <section className="max-w-7xl mx-auto px-4 mb-10">
         <div className="grid md:grid-cols-2 gap-4">
           <div className="bg-brique rounded-2xl p-8 text-white">
             <div className="text-3xl mb-3">🏗️</div>
             <h3 className="font-condensed font-bold text-xl mb-2">Vous êtes professionnel ?</h3>
-            <p className="text-white/80 text-sm mb-4">Obtenez des tarifs préférentiels, des devis rapides et une livraison prioritaire pour vos chantiers.</p>
-            <Link href="/devis" className="inline-block bg-white text-brique font-bold px-4 py-2 rounded text-sm hover:bg-gray-100 transition-colors">
-              Demander un devis pro →
-            </Link>
+            <p className="text-white/80 text-sm mb-4">Tarifs préférentiels, devis rapides et livraison prioritaire pour vos chantiers.</p>
+            <Link href="/devis" className="inline-block bg-white text-brique font-bold px-4 py-2 rounded text-sm hover:bg-gray-100 transition-colors">Demander un devis pro →</Link>
           </div>
           <div className="bg-acier rounded-2xl p-8 text-white">
             <div className="text-3xl mb-3">📱</div>
             <h3 className="font-condensed font-bold text-xl mb-2">Paiement facilité</h3>
-            <p className="text-white/80 text-sm mb-4">Payez facilement par Orange Money, MTN MoMo, carte bancaire ou à la livraison. Sécurisé et rapide.</p>
+            <p className="text-white/80 text-sm mb-4">Orange Money, MTN MoMo, ou paiement en magasin / à la livraison. Sécurisé et rapide.</p>
             <div className="flex gap-3 flex-wrap">
-              {['Orange Money', 'MTN MoMo', 'Visa'].map(m => (
-                <span key={m} className="bg-white/10 text-white text-xs font-medium px-3 py-1 rounded-full">{m}</span>
-              ))}
+              {['Orange Money', 'MTN MoMo', 'En magasin'].map(m => <span key={m} className="bg-white/10 text-white text-xs font-medium px-3 py-1 rounded-full">{m}</span>)}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ===== VILLES ===== */}
-      <section className="max-w-7xl mx-auto px-4 mb-10">
+      {/* VILLES */}
+      <section className="max-w-7xl mx-auto px-4 mb-12">
         <h2 className="font-condensed font-bold text-2xl text-acier mb-4">Livraison dans tout le Cameroun</h2>
         <div className="flex flex-wrap gap-2">
-          {['Douala','Yaoundé','Bafoussam','Garoua','Bamenda','Maroua','Ngaoundéré','Bertoua','Ebolowa','Kumba','Limbe','Kribi'].map(v => (
-            <span key={v} className="bg-white border border-gray-200 text-acier text-sm px-4 py-1.5 rounded-full font-medium">
-              📍 {v}
-            </span>
+          {['Douala', 'Yaoundé', 'Bafoussam', 'Garoua', 'Bamenda', 'Maroua', 'Ngaoundéré', 'Bertoua', 'Ebolowa', 'Kumba', 'Limbe', 'Kribi'].map(v => (
+            <span key={v} className="bg-white border border-gray-200 text-acier text-sm px-4 py-1.5 rounded-full font-medium">📍 {v}</span>
           ))}
         </div>
       </section>
