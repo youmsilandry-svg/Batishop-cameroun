@@ -7,11 +7,11 @@ export const SITE = {
   nom: 'BatiShop Cameroun',
 
   // Téléphone
-  tel: '+237 6XX XXX XXX',        // tel affiché à l'écran
-  telLien: '+237600000000',        // tel pour les liens cliquables (format international, sans espaces)
+  tel: '+237 673644892',        // tel affiché à l'écran
+  telLien: '+237673644892',        // tel pour les liens cliquables (format international, sans espaces)
 
   // WhatsApp (numéro sans + ni espaces, ex: 237600000000)
-  whatsapp: '237600000000',
+  whatsapp: '237673644892',
 
   // Emails
   email: 'contact@batishop-cameroun.com',
