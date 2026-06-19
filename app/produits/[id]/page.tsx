@@ -14,6 +14,47 @@ export default function PageDetailProduit() {
   const [stockPartenaires, setStockPartenaires] = useState(0)
   const [onglet, setOnglet] = useState('description')
 
+  // ===== AVIS =====
+  const [avisListe, setAvisListe] = useState<any[]>([])
+  const [noteMoyenne, setNoteMoyenne] = useState(0)
+  const [nbAvis, setNbAvis] = useState(0)
+  const [formNom, setFormNom] = useState('')
+  const [formNote, setFormNote] = useState(0)
+  const [hoverNote, setHoverNote] = useState(0)
+  const [formCommentaire, setFormCommentaire] = useState('')
+  const [envoiAvis, setEnvoiAvis] = useState(false)
+  const [avisEnvoye, setAvisEnvoye] = useState(false)
+  const [erreurAvis, setErreurAvis] = useState('')
+
+  const chargerAvis = async () => {
+    const { data } = await supabase.from('avis').select('*')
+      .eq('produit_id', id).eq('approuve', true)
+      .order('created_at', { ascending: false })
+    const liste = data || []
+    setAvisListe(liste)
+    setNbAvis(liste.length)
+    setNoteMoyenne(liste.length ? Math.round((liste.reduce((s: number, a: any) => s + a.note, 0) / liste.length) * 10) / 10 : 0)
+  }
+
+  const envoyerAvis = async () => {
+    if (!formNom.trim() || formNote < 1) {
+      setErreurAvis('Indiquez votre nom et une note (étoiles).')
+      return
+    }
+    setEnvoiAvis(true); setErreurAvis('')
+    const { error } = await supabase.from('avis').insert({
+      produit_id: produit.id,
+      nom: formNom.trim().slice(0, 60),
+      note: formNote,
+      commentaire: formCommentaire.trim().slice(0, 600) || null,
+    })
+    setEnvoiAvis(false)
+    if (error) { setErreurAvis("Impossible d'enregistrer votre avis pour le moment. Réessayez."); return }
+    setFormNom(''); setFormNote(0); setFormCommentaire(''); setAvisEnvoye(true)
+    setTimeout(() => setAvisEnvoye(false), 4000)
+    chargerAvis()
+  }
+
   useEffect(() => {
     async function charger() {
       const { data } = await supabase.from('produits').select('*').eq('id', id).single()
@@ -23,6 +64,7 @@ export default function PageDetailProduit() {
       setLoading(false)
     }
     if (id) charger()
+    if (id) chargerAvis()
   }, [id])
 
   const cat = CATEGORIES.find((c) => c.id === produit?.categorie)
@@ -106,10 +148,14 @@ export default function PageDetailProduit() {
           <div className="flex items-center gap-2 mb-4">
             <div className="flex">
               {[1,2,3,4,5].map(i => (
-                <Star key={i} size={14} className={i <= 4 ? 'text-or fill-or' : 'text-gray-300'}/>
+                <Star key={i} size={14} className={i <= Math.round(noteMoyenne) ? 'text-or fill-or' : 'text-gray-300'}/>
               ))}
             </div>
-            <span className="text-xs text-gray-500">4.0/5 (12 avis)</span>
+            <span className="text-xs text-gray-500">
+              {nbAvis > 0
+                ? `${noteMoyenne}/5 (${nbAvis} avis)`
+                : 'Pas encore d\u2019avis'}
+            </span>
           </div>
 
           {/* PRIX */}
@@ -171,7 +217,7 @@ export default function PageDetailProduit() {
             { id: 'description', label: 'Description' },
             { id: 'caracteristiques', label: 'Caractéristiques' },
             { id: 'livraison', label: 'Livraison & Paiement' },
-            { id: 'avis', label: 'Avis (12)' },
+            { id: 'avis', label: `Avis (${nbAvis})` },
           ].map(o => (
             <button key={o.id} onClick={() => setOnglet(o.id)}
               className={`px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
@@ -268,44 +314,105 @@ export default function PageDetailProduit() {
 
           {onglet === 'avis' && (
             <div>
+              {/* Résumé note moyenne */}
               <div className="flex items-center gap-4 mb-6 p-4 bg-beton rounded-xl">
                 <div className="text-center">
-                  <div className="font-condensed font-bold text-4xl text-acier">4.0</div>
+                  <div className="font-condensed font-bold text-4xl text-acier">{nbAvis > 0 ? noteMoyenne : '—'}</div>
                   <div className="flex justify-center mt-1">
                     {[1,2,3,4,5].map(i => (
-                      <Star key={i} size={14} className={i <= 4 ? 'text-or fill-or' : 'text-gray-300'}/>
+                      <Star key={i} size={14} className={i <= Math.round(noteMoyenne) ? 'text-or fill-or' : 'text-gray-300'}/>
                     ))}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">12 avis</div>
+                  <div className="text-xs text-gray-500 mt-1">{nbAvis} avis</div>
                 </div>
+                <p className="text-sm text-gray-500">
+                  {nbAvis > 0
+                    ? `Note moyenne sur ${nbAvis} avis client${nbAvis > 1 ? 's' : ''}.`
+                    : 'Aucun avis pour le moment. Soyez le premier à donner le vôtre !'}
+                </p>
               </div>
-              <div className="space-y-4">
-                {[
-                  { nom: 'Jean-Pierre K.', note: 5, date: 'Il y a 2 semaines', texte: 'Excellent produit, livraison rapide à Douala !' },
-                  { nom: 'Marie T.', note: 4, date: 'Il y a 1 mois', texte: 'Bonne qualité, prix correct.' },
-                  { nom: 'Paul N.', note: 4, date: 'Il y a 2 mois', texte: 'Conforme à la description. Bon rapport qualité-prix.' },
-                ].map((avis, i) => (
-                  <div key={i} className="border-b border-gray-100 pb-4 last:border-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-brique text-white flex items-center justify-center text-xs font-bold">
-                        {avis.nom[0]}
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm text-acier">{avis.nom}</div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex">
-                            {[1,2,3,4,5].map(i => (
-                              <Star key={i} size={10} className={i <= avis.note ? 'text-or fill-or' : 'text-gray-300'}/>
-                            ))}
+
+              {/* Formulaire : laisser un avis */}
+              <div className="border border-gray-200 rounded-xl p-4 mb-6">
+                <h4 className="font-bold text-acier text-sm mb-3">Donner mon avis</h4>
+
+                {avisEnvoye && (
+                  <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                    <Check size={16}/> Merci ! Votre avis a bien été publié.
+                  </div>
+                )}
+
+                {/* Note en étoiles cliquables */}
+                <div className="mb-3">
+                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">Votre note</label>
+                  <div className="flex gap-1">
+                    {[1,2,3,4,5].map(i => (
+                      <button key={i} type="button"
+                        onClick={() => setFormNote(i)}
+                        onMouseEnter={() => setHoverNote(i)}
+                        onMouseLeave={() => setHoverNote(0)}
+                        className="p-0.5">
+                        <Star size={26}
+                          className={i <= (hoverNote || formNote) ? 'text-or fill-or' : 'text-gray-300'}/>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Nom */}
+                <div className="mb-3">
+                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">Votre nom</label>
+                  <input type="text" value={formNom} onChange={e => setFormNom(e.target.value)}
+                    maxLength={60} placeholder="Ex: Jean K."
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brique"/>
+                </div>
+
+                {/* Commentaire */}
+                <div className="mb-3">
+                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">Votre commentaire <span className="text-gray-400 font-normal">(optionnel)</span></label>
+                  <textarea value={formCommentaire} onChange={e => setFormCommentaire(e.target.value)}
+                    maxLength={600} rows={3} placeholder="Qu'avez-vous pensé de ce produit ?"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brique resize-none"/>
+                </div>
+
+                {erreurAvis && <p className="text-xs text-red-600 mb-2">{erreurAvis}</p>}
+
+                <button onClick={envoyerAvis} disabled={envoiAvis}
+                  className="bg-brique text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-brique-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  {envoiAvis ? 'Envoi...' : 'Publier mon avis'}
+                </button>
+              </div>
+
+              {/* Liste des avis */}
+              {avisListe.length > 0 ? (
+                <div className="space-y-4">
+                  {avisListe.map((avis: any) => (
+                    <div key={avis.id} className="border-b border-gray-100 pb-4 last:border-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-brique text-white flex items-center justify-center text-xs font-bold">
+                          {(avis.nom || '?')[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-medium text-sm text-acier">{avis.nom}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex">
+                              {[1,2,3,4,5].map(i => (
+                                <Star key={i} size={10} className={i <= avis.note ? 'text-or fill-or' : 'text-gray-300'}/>
+                              ))}
+                            </div>
+                            <span className="text-xs text-gray-400">
+                              {new Date(avis.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </span>
                           </div>
-                          <span className="text-xs text-gray-400">{avis.date}</span>
                         </div>
                       </div>
+                      {avis.commentaire && <p className="text-sm text-gray-600">{avis.commentaire}</p>}
                     </div>
-                    <p className="text-sm text-gray-600">{avis.texte}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-4">Aucun avis publié pour l'instant.</p>
+              )}
             </div>
           )}
         </div>
