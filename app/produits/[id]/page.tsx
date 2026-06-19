@@ -9,20 +9,19 @@ export default function PageDetailProduit() {
   const { id } = useParams()
   const router = useRouter()
   const [produit, setProduit] = useState(null)
-  const [prixMoyen, setPrixMoyen] = useState<any>(null)
   const [quantite, setQuantite] = useState(1)
   const [inputQuantite, setInputQuantite] = useState('1')
   const [ajoute, setAjoute] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [stockPartenaires, setStockPartenaires] = useState(0)
   const [onglet, setOnglet] = useState('description')
 
   useEffect(() => {
     async function charger() {
       const { data } = await supabase.from('produits').select('*').eq('id', id).single()
       setProduit(data)
-      const { data: pm } = await supabase.from('prix_moyen_partenaires')
-        .select('prix_moyen, nb_partenaires').eq('produit_id', id).maybeSingle()
-      setPrixMoyen(pm)
+      const { data: stk } = await supabase.from('stocks_partenaires').select('quantite').eq('produit_id', id)
+      setStockPartenaires(Array.isArray(stk) ? stk.reduce((s: number, x: any) => s + (x.quantite || 0), 0) : 0)
       setLoading(false)
     }
     if (id) charger()
@@ -175,40 +174,96 @@ export default function PageDetailProduit() {
           {/* PRIX */}
           <div className="bg-beton rounded-xl p-4 mb-4">
             <div className="flex items-baseline gap-3 mb-1">
-              <span className="font-condensed font-bold text-3xl text-brique">{formatPrix(prixMoyen?.prix_moyen || produit.prix)}</span>
+              <span className="font-condensed font-bold text-3xl text-brique">{formatPrix(produit.prix)}</span>
               <span className="text-sm text-gray-500">/ {produit.unite}</span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {prixMoyen?.nb_partenaires > 0
-                ? `Prix moyen sur ${prixMoyen.nb_partenaires} boutique${prixMoyen.nb_partenaires > 1 ? 's' : ''} — choisissez votre boutique ci-dessous`
-                : 'Prix indicatif — choisissez votre boutique ci-dessous'}
-            </p>
+            {produit.prix_ancien && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
+                <span className="text-sm font-bold text-green-600">Économisez {formatPrix(produit.prix_ancien - produit.prix)}</span>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-1">Prix TTC — Livraison calculée à la commande</p>
           </div>
 
           {/* Stock */}
           <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg ${
-            produit.stock > 10 ? 'bg-green-50 text-green-700' :
-            produit.stock > 0 ? 'bg-amber-50 text-amber-700' :
+            (produit.stock + stockPartenaires) > 10 ? 'bg-green-50 text-green-700' :
+            (produit.stock + stockPartenaires) > 0 ? 'bg-amber-50 text-amber-700' :
             'bg-red-50 text-red-700'}`}>
             <Check size={16}/>
             <span className="text-sm font-medium">
-              {produit.stock > 10 ? `En stock — ${produit.stock} disponibles` :
-               produit.stock > 0 ? `Stock limité — Plus que ${produit.stock} en stock !` :
+              {(produit.stock + stockPartenaires) > 10 ? `En stock — ${produit.stock + stockPartenaires} disponibles` :
+               (produit.stock + stockPartenaires) > 0 ? `Stock limité — Plus que ${produit.stock + stockPartenaires} en stock !` :
                'Rupture de stock'}
             </span>
           </div>
 
-          {/* ===== CHOIX DE LA BOUTIQUE ===== */}
+          {/* ===== SÉLECTEUR QUANTITÉ ===== */}
+          <div className="mb-4">
+            <label className="text-xs font-semibold text-gray-500 block mb-2">Quantité</label>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center border-2 border-gray-200 rounded-lg overflow-hidden focus-within:border-brique transition-colors">
+                {/* Bouton Moins */}
+                <button
+                  type="button"
+                  onClick={diminuer}
+                  disabled={quantite <= 1}
+                  className="px-4 py-3 hover:bg-beton text-acier font-bold text-xl select-none disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  <Minus size={16}/>
+                </button>
+
+                {/* Input saisie manuelle */}
+                <input
+                  type="number"
+                  value={inputQuantite}
+                  onChange={handleInputChange}
+                  onBlur={handleInputBlur}
+                  onKeyDown={handleInputKeyDown}
+                  min={1}
+                  max={produit.stock}
+                  className="w-16 text-center py-3 font-bold text-lg border-x-2 border-gray-200 focus:outline-none bg-white"
+                  style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
+                />
+
+                {/* Bouton Plus */}
+                <button
+                  type="button"
+                  onClick={augmenter}
+                  disabled={quantite >= produit.stock}
+                  className="px-4 py-3 hover:bg-beton text-acier font-bold text-xl select-none disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  <Plus size={16}/>
+                </button>
+              </div>
+
+              <span className="text-sm text-gray-400">
+                {produit.unite}{quantite > 1 ? 's' : ''}
+                {produit.stock <= 10 && produit.stock > 0 && (
+                  <span className="text-amber-600 ml-1">(max {produit.stock})</span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Total estimé */}
+          {quantite > 1 && (
+            <div className="text-sm text-gray-600 mb-4 p-3 bg-beton rounded-lg flex items-center justify-between">
+              <span>Total estimé ({quantite} {produit.unite}s)</span>
+              <strong className="text-brique text-base">{formatPrix(produit.prix * quantite)}</strong>
+            </div>
+          )}
+
+          {/* Bouton Panier */}
           <button
-            onClick={() => document.getElementById('ou-trouver')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={ajouterAuPanier}
             disabled={produit.stock === 0}
             className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-lg font-bold text-base transition-colors ${
+              ajoute ? 'bg-green-600 text-white' :
               produit.stock === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' :
               'bg-brique text-white hover:bg-brique-dark'}`}>
             <ShoppingCart size={20}/>
-            {produit.stock === 0 ? 'Rupture de stock' : 'Choisir une boutique ↓'}
+            {ajoute ? '✓ Ajouté au panier !' : produit.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}
           </button>
-          <p className="text-xs text-gray-400 text-center mt-2">Comparez les prix des partenaires et achetez chez celui de votre choix.</p>
 
           {/* Contact */}
           <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg mt-4">
@@ -273,7 +328,7 @@ export default function PageDetailProduit() {
                   ['Référence', produit.reference],
                   ['Catégorie', cat?.label],
                   ['Unité de vente', produit.unite],
-                  ['Stock disponible', `${produit.stock} unités`],
+                  ['Stock disponible', `${produit.stock + stockPartenaires} unités`],
                   ['Prix unitaire', formatPrix(produit.prix)],
                   ['Garantie', '6 mois'],
                 ].map(([label, val], i) => (
@@ -371,7 +426,7 @@ export default function PageDetailProduit() {
       </div>
 
       <div className="mb-6">
-        <OuTrouver produit={produit} />
+        <OuTrouver produitId={produit.id} produitNom={produit.nom} />
       </div>
       <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-500 hover:text-brique">
         <ArrowLeft size={16}/> Retour au catalogue
