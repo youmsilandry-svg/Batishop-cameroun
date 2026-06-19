@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { PAYS } from './config'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -80,16 +81,12 @@ export async function fetchCategories() {
   }
 }
 
-export const VILLES = [
-  'Douala', 'Yaoundé', 'Bafoussam', 'Garoua',
-  'Bamenda', 'Maroua', 'Ngaoundéré', 'Bertoua',
-  'Ebolowa', 'Kumba', 'Limbe', 'Kribi',
-]
+export const VILLES = PAYS.villes
 
 export function formatPrix(montant: number): string {
-  return new Intl.NumberFormat('fr-CM', {
+  return new Intl.NumberFormat(PAYS.locale, {
     style: 'currency',
-    currency: 'XAF',
+    currency: PAYS.devise,
     minimumFractionDigits: 0,
   }).format(montant)
 }

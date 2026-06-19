@@ -25,3 +25,39 @@ export const SITE = {
   momoMtn: '+237 6XX XXX XXX',      // MTN Mobile Money
   momoOrange: '+237 6XX XXX XXX',   // Orange Money
 }
+
+// =====================================================================
+//  PAYS — tout ce qui dépend du pays est ici.
+//  Pour lancer un autre pays (ex. Côte d'Ivoire) : clone le projet et
+//  remplace le bloc ci-dessous par celui en commentaire plus bas.
+// =====================================================================
+export const PAYS = {
+  code: 'CM',
+  nom: 'Cameroun',
+  devise: 'XAF',        // XAF = Cameroun (CEMAC) · XOF = Côte d'Ivoire / Afrique de l'Ouest
+  locale: 'fr-CM',      // utilisé pour le format des prix
+  indicatif: '237',     // indicatif téléphonique
+  villes: [
+    'Douala', 'Yaoundé', 'Bafoussam', 'Garoua',
+    'Bamenda', 'Maroua', 'Ngaoundéré', 'Bertoua',
+    'Ebolowa', 'Kumba', 'Limbe', 'Kribi',
+  ],
+}
+
+// ---------------------------------------------------------------------
+//  CÔTE D'IVOIRE — pour le clone ivoirien, remplace le bloc PAYS ci-dessus
+//  par celui-ci (et adapte SITE : nom, téléphone, momo, adresse) :
+//
+//  export const PAYS = {
+//    code: 'CI',
+//    nom: "Côte d'Ivoire",
+//    devise: 'XOF',
+//    locale: 'fr-CI',
+//    indicatif: '225',
+//    villes: [
+//      'Abidjan', 'Bouaké', 'Yamoussoukro', 'San-Pédro',
+//      'Daloa', 'Korhogo', 'Man', 'Gagnoa',
+//      'Abengourou', 'Divo', 'Grand-Bassam', 'Soubré',
+//    ],
+//  }
+// ---------------------------------------------------------------------
