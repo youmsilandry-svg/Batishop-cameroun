@@ -18,5 +18,5 @@ export const SITE = {
   emailPartenaires: 'partenaires@batishop-cameroun.com',
 
   // Adresse
-  adresse: 'Douala, Cameroun',
+  adresse: 'Carrefour-Tsinga, Yaounde, Cameroun',
 }
