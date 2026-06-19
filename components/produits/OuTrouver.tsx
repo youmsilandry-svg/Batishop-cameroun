@@ -1,8 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { MapPin, Phone, Clock, Navigation, Store, Package, ChevronRight, Zap } from 'lucide-react'
+import { MapPin, Clock, Navigation, Store, Package, ChevronRight, Zap, ShoppingCart, Minus, Plus, Check } from 'lucide-react'
 import Link from 'next/link'
 import { supabase, VILLES, formatPrix } from '../../lib/supabase'
+import { ajouterLignePanier } from '../../lib/panier'
 
 const DELAIS = [
   { id: 'maintenant', label: 'Maintenant', icon: '⚡', color: 'bg-green-100 text-green-800 border-green-300' },
@@ -18,36 +19,39 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
   const [prixMoyen, setPrixMoyen] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [cherche, setCherche] = useState(false)
-  const [prodExcl, setProdExcl] = useState<any>(null)
+  const [produit, setProduit] = useState<any>(null)
   const [exclVille, setExclVille] = useState<any[]>([])
+  const [qtes, setQtes] = useState<Record<string, number>>({})
+  const [ajoute, setAjoute] = useState<Record<string, boolean>>({})
 
-  // Exclusivités de ce produit (totale + par ville)
+  const getQte = (k: string) => qtes[k] || 1
+  const setQte = (k: string, v: number) => setQtes(p => ({ ...p, [k]: Math.max(1, v) }))
+
+  // Produit (prix, unité…) + exclusivités
   useEffect(() => {
-    supabase.from('produits').select('partenaire_exclusif, produit_partenaire').eq('id', produitId).maybeSingle()
-      .then(({ data }) => setProdExcl(data))
+    supabase.from('produits')
+      .select('id, nom, prix, unite, image_url, reference, categorie, partenaire_exclusif, produit_partenaire')
+      .eq('id', produitId).maybeSingle()
+      .then(({ data }) => setProduit(data))
     supabase.from('exclusivites_ville').select('ville, partenaire_id').eq('produit_id', produitId).eq('actif', true)
       .then(({ data }) => setExclVille(data || []))
   }, [produitId])
 
-  // Prix moyen du site (tous partenaires, toutes villes) pour ce produit
+  // Prix moyen du site
   useEffect(() => {
-    supabase
-      .from('prix_moyen_partenaires')
+    supabase.from('prix_moyen_partenaires')
       .select('prix_moyen, prix_min, prix_max, nb_partenaires')
-      .eq('produit_id', produitId)
-      .maybeSingle()
+      .eq('produit_id', produitId).maybeSingle()
       .then(({ data }) => setPrixMoyen(data))
   }, [produitId])
 
   const chercher = async () => {
-    setLoading(true)
-    setCherche(true)
-
+    setLoading(true); setCherche(true)
     const { data } = await supabase
       .from('stocks_partenaires')
       .select(`
         quantite, disponible_immediat, prix_local, mis_en_avant,
-        partenaires_magasins!inner(id, entreprise_id, nom, ville, quartier, adresse, telephone, horaires, latitude, longitude)
+        partenaires_magasins!inner(id, entreprise_id, nom, ville, quartier, adresse, telephone, horaires, latitude, longitude, livre, frais_livraison_base)
       `)
       .eq('produit_id', produitId)
       .eq('partenaires_magasins.ville', ville)
@@ -55,23 +59,42 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
       .gt('quantite', 0)
 
     let list = data || []
-    // Règle de priorité : exclusivité totale > exclusivité ville > mise en avant
-    if (prodExcl?.partenaire_exclusif) {
-      list = list.filter((s: any) => s.partenaires_magasins?.entreprise_id === prodExcl.partenaire_exclusif)
+    // Priorité : exclusivité totale > exclusivité ville > mise en avant
+    if (produit?.partenaire_exclusif) {
+      list = list.filter((s: any) => s.partenaires_magasins?.entreprise_id === produit.partenaire_exclusif)
     } else {
       const e = exclVille.find((x: any) => x.ville === ville)
       if (e) list = list.filter((s: any) => s.partenaires_magasins?.entreprise_id === e.partenaire_id)
     }
-    // Mise en avant : partenaires "officiels" affichés en premier
     list = [...list].sort((a: any, b: any) => (b.mis_en_avant ? 1 : 0) - (a.mis_en_avant ? 1 : 0))
-
     setPartenaires(list)
     setLoading(false)
   }
 
-  useEffect(() => { chercher() }, [ville, delai, prodExcl, exclVille])
+  useEffect(() => { chercher() }, [ville, delai, produit, exclVille])
 
-  const delaiConfig = DELAIS.find(d => d.id === delai) || DELAIS[0]
+  const feedback = (k: string) => { setAjoute(p => ({ ...p, [k]: true })); setTimeout(() => setAjoute(p => ({ ...p, [k]: false })), 1800) }
+
+  const ajouterBatishop = () => {
+    if (!produit) return
+    ajouterLignePanier(produit, { id: 'batishop', nom: 'BatiShop', ville, prix_local: produit.prix, livre: true, frais_livraison_base: 0 }, getQte('batishop'))
+    feedback('batishop')
+  }
+  const ajouterPartenaire = (s: any) => {
+    if (!produit) return
+    const m = s.partenaires_magasins
+    ajouterLignePanier(produit, { id: m.id, nom: m.nom, ville: m.ville, prix_local: s.prix_local, livre: m.livre ?? true, frais_livraison_base: m.frais_livraison_base ?? 0 }, getQte(m.id))
+    feedback(m.id)
+  }
+
+  // Petit sélecteur de quantité réutilisable
+  const Stepper = ({ k }: { k: string }) => (
+    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
+      <button onClick={() => setQte(k, getQte(k) - 1)} className="px-2 py-1 hover:bg-beton text-acier"><Minus size={12}/></button>
+      <span className="px-2 text-xs font-semibold min-w-[24px] text-center">{getQte(k)}</span>
+      <button onClick={() => setQte(k, getQte(k) + 1)} className="px-2 py-1 hover:bg-beton text-acier"><Plus size={12}/></button>
+    </div>
+  )
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
@@ -79,8 +102,6 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
         <h3 className="font-condensed font-bold text-lg text-acier flex items-center gap-2 mb-4">
           <MapPin size={18} className="text-brique"/> Où trouver ce produit ?
         </h3>
-
-        {/* Filtres */}
         <div className="flex gap-3 flex-wrap">
           <div className="flex-1 min-w-32">
             <label className="text-xs font-semibold text-gray-400 block mb-1">Ma ville</label>
@@ -105,43 +126,40 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
 
       <div className="p-5">
         {loading ? (
-          <div className="space-y-3">
-            {[1,2].map(i => <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"/>)}
-          </div>
+          <div className="space-y-3">{[1,2].map(i => <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"/>)}</div>
         ) : (
           <>
-            {/* BatiShop livraison — toujours affiché en premier */}
+            {/* BatiShop — livraison directe */}
             <div className="flex items-start gap-3 p-3 bg-brique/5 border border-brique/20 rounded-xl mb-3">
               <div className="w-10 h-10 rounded-full bg-brique flex items-center justify-center shrink-0">
                 <Package size={18} className="text-white"/>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="font-bold text-sm text-acier">BatiShop — Livraison à domicile</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                    delai === 'maintenant' || delai === 'aujourd_hui'
-                      ? 'bg-blue-100 text-blue-800 border-blue-300'
-                      : 'bg-green-100 text-green-800 border-green-300'}`}>
-                    {delai === 'maintenant' || delai === 'aujourd_hui' ? "🌅 Aujourd'hui" : '⚡ Disponible'}
-                  </span>
+                  {produit && (
+                    <span className="text-xs bg-brique/10 text-brique px-1.5 py-0.5 rounded-full font-bold">{formatPrix(produit.prix)}</span>
+                  )}
                 </div>
                 <p className="text-xs text-gray-500">Commande en ligne · Livraison à {ville} · Prix garanti</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Stepper k="batishop"/>
+                  <button onClick={ajouterBatishop} disabled={!produit}
+                    className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold ${ajoute['batishop'] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
+                    {ajoute['batishop'] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter au panier</>}
+                  </button>
+                </div>
               </div>
-              <Link href={`/panier`} className="shrink-0 btn-primary text-xs py-1.5 px-3">
-                Commander
-              </Link>
             </div>
 
-            {/* Prix moyen pratiqué par les magasins partenaires */}
+            {/* Prix moyen partenaires */}
             {prixMoyen && prixMoyen.nb_partenaires > 0 && (
               <div className="flex items-center justify-between gap-3 p-3 bg-acier/5 border border-acier/10 rounded-xl mb-3">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prix moyen en magasin</p>
                   <p className="text-xs text-gray-400">
                     Sur {prixMoyen.nb_partenaires} magasin{prixMoyen.nb_partenaires > 1 ? 's' : ''} partenaire{prixMoyen.nb_partenaires > 1 ? 's' : ''}
-                    {prixMoyen.prix_min !== prixMoyen.prix_max && (
-                      <> · de {formatPrix(prixMoyen.prix_min)} à {formatPrix(prixMoyen.prix_max)}</>
-                    )}
+                    {prixMoyen.prix_min !== prixMoyen.prix_max && (<> · de {formatPrix(prixMoyen.prix_min)} à {formatPrix(prixMoyen.prix_max)}</>)}
                   </p>
                 </div>
                 <span className="font-condensed font-bold text-lg text-acier shrink-0">{formatPrix(prixMoyen.prix_moyen)}</span>
@@ -157,7 +175,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                 {partenaires.slice(0, 3).map((s: any, i: number) => {
                   const mag = s.partenaires_magasins
                   return (
-                    <div key={i} className="flex items-start gap-3 p-3 bg-beton rounded-xl hover:bg-gray-100 transition-colors">
+                    <div key={i} className="flex items-start gap-3 p-3 bg-beton rounded-xl">
                       <div className="w-9 h-9 rounded-full bg-acier/10 flex items-center justify-center shrink-0">
                         <Store size={15} className="text-acier"/>
                       </div>
@@ -165,44 +183,35 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span className="font-bold text-sm text-acier truncate">{mag.nom}</span>
                           {s.mis_en_avant && (
-                            <span className="text-xs bg-or/20 text-acier px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5">
-                              ⭐ Partenaire officiel
-                            </span>
+                            <span className="text-xs bg-or/20 text-acier px-1.5 py-0.5 rounded-full font-bold">⭐ Partenaire officiel</span>
                           )}
                           {s.prix_local > 0 && (
-                            <span className="text-xs bg-brique/10 text-brique px-1.5 py-0.5 rounded-full font-bold">
-                              {formatPrix(s.prix_local)}
-                            </span>
+                            <span className="text-xs bg-brique/10 text-brique px-1.5 py-0.5 rounded-full font-bold">{formatPrix(s.prix_local)}</span>
                           )}
-                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
-                            {s.quantite} en stock
-                          </span>
+                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">{s.quantite} en stock</span>
                           {s.disponible_immediat && (
-                            <span className="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
-                              <Zap size={9}/> Retrait immédiat
-                            </span>
+                            <span className="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5"><Zap size={9}/> Retrait immédiat</span>
                           )}
                         </div>
                         <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
                           <MapPin size={10}/> {mag.quartier ? `${mag.quartier} · ` : ''}{mag.adresse}
                         </p>
                         {mag.horaires && (
-                          <p className="text-xs text-gray-400 flex items-center gap-1">
-                            <Clock size={10}/> {mag.horaires}
-                          </p>
+                          <p className="text-xs text-gray-400 flex items-center gap-1"><Clock size={10}/> {mag.horaires}</p>
                         )}
-                      </div>
-                      <div className="flex flex-col gap-1.5 shrink-0">
-                        <a href={`tel:${mag.telephone}`}
-                          className="flex items-center gap-1 bg-brique text-white text-xs px-2.5 py-1.5 rounded-lg hover:bg-brique-dark font-medium">
-                          <Phone size={11}/> Appeler
-                        </a>
-                        {mag.latitude && (
-                          <a href={`https://maps.google.com/?q=${mag.latitude},${mag.longitude}`} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 border border-gray-200 text-gray-600 text-xs px-2.5 py-1.5 rounded-lg hover:text-brique hover:border-brique">
-                            <Navigation size={11}/> GPS
-                          </a>
-                        )}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <Stepper k={mag.id}/>
+                          <button onClick={() => ajouterPartenaire(s)} disabled={!produit}
+                            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold ${ajoute[mag.id] ? 'bg-green-600 text-white' : 'bg-acier text-white hover:bg-brique'}`}>
+                            {ajoute[mag.id] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter au panier</>}
+                          </button>
+                          {mag.latitude && (
+                            <a href={`https://maps.google.com/?q=${mag.latitude},${mag.longitude}`} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1 border border-gray-200 text-gray-500 text-xs px-2.5 py-1.5 rounded-lg hover:text-brique hover:border-brique">
+                              <Navigation size={11}/> GPS
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
@@ -218,11 +227,10 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
               <div className="text-center py-6 text-gray-400">
                 <Store size={28} className="mx-auto mb-2 opacity-40"/>
                 <p className="text-sm">Pas de stock chez nos partenaires à {ville}</p>
-                <p className="text-xs mt-1">Essayez un autre délai ou commandez en livraison</p>
+                <p className="text-xs mt-1">Ajoutez chez BatiShop ci-dessus ou essayez une autre ville</p>
               </div>
             )}
 
-            {/* Voir tous les points */}
             <Link href={`/disponible?q=${encodeURIComponent(produitNom)}&ville=${ville}&delai=${delai}`}
               className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 border border-gray-200 rounded-lg text-sm text-gray-500 hover:border-brique hover:text-brique transition-colors">
               <MapPin size={14}/> Voir tous les points de disponibilité →
