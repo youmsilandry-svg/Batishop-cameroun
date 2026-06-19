@@ -37,6 +37,7 @@ export const PAYS = {
   devise: 'XAF',        // XAF = Cameroun (CEMAC) · XOF = Côte d'Ivoire / Afrique de l'Ouest
   locale: 'fr-CM',      // utilisé pour le format des prix
   indicatif: '237',     // indicatif téléphonique
+  fraisMomoPourcent: 2, // frais ajoutés au client s'il paie par mobile money (en %)
   villes: [
     'Douala', 'Yaoundé', 'Bafoussam', 'Garoua',
     'Bamenda', 'Maroua', 'Ngaoundéré', 'Bertoua',
@@ -54,6 +55,7 @@ export const PAYS = {
 //    devise: 'XOF',
 //    locale: 'fr-CI',
 //    indicatif: '225',
+//    fraisMomoPourcent: 2,
 //    villes: [
 //      'Abidjan', 'Bouaké', 'Yamoussoukro', 'San-Pédro',
 //      'Daloa', 'Korhogo', 'Man', 'Gagnoa',

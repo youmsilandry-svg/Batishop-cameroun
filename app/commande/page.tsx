@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Store, MapPin, Truck, Package, Crosshair, Navigation } from 'lucide-react'
 import { formatPrix, supabase, VILLES } from '../../lib/supabase'
-import { SITE } from '../../lib/config'
+import { SITE, PAYS } from '../../lib/config'
 import { usePanier } from '../../lib/panier'
 
 export default function PageCommande() {
@@ -53,7 +53,11 @@ export default function PageCommande() {
   const modeDe = (g: any) => modes[g.point_vente_id] || 'retrait'
   const fraisDe = (g: any) => modeDe(g) === 'livraison' ? (g.frais_livraison_base || 0) : 0
   const totalLivraison = parPartenaire.reduce((s, g) => s + fraisDe(g), 0)
-  const grandTotal = total + totalLivraison
+  // Frais mobile money : ajoutés seulement si le client paie en ligne (mobile money)
+  const fraisMomo = form.paiement === 'en_ligne'
+    ? Math.round((total + totalLivraison) * (PAYS.fraisMomoPourcent || 0) / 100)
+    : 0
+  const grandTotal = total + totalLivraison + fraisMomo
   const ilYaLivraison = parPartenaire.some(g => modeDe(g) === 'livraison')
 
   const setMode = (id: string, m: 'retrait' | 'livraison') => setModes(s => ({ ...s, [id]: m }))
@@ -282,6 +286,9 @@ export default function PageCommande() {
             <div className="border-t pt-3 space-y-1 text-sm">
               <div className="flex justify-between text-gray-600"><span>Produits</span><span>{formatPrix(total)}</span></div>
               <div className="flex justify-between text-gray-600"><span>Livraison</span><span>{totalLivraison === 0 ? 'gratuite' : formatPrix(totalLivraison)}</span></div>
+              {fraisMomo > 0 && (
+                <div className="flex justify-between text-gray-600"><span>Frais Mobile Money ({PAYS.fraisMomoPourcent}%)</span><span>{formatPrix(fraisMomo)}</span></div>
+              )}
               <div className="flex justify-between font-bold text-base pt-2 border-t"><span>TOTAL</span><span className="text-brique">{formatPrix(grandTotal)}</span></div>
             </div>
             <button type="submit" disabled={envoi}
