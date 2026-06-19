@@ -1,26 +1,9 @@
 'use client'
-import { useState } from 'react'
 import Link from 'next/link'
-import { ShoppingCart, Heart, Eye } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import { Produit, formatPrix } from '../../lib/supabase'
 
 export function CarteProduit({ produit }: { produit: Produit }) {
-  const [ajoute, setAjoute] = useState(false)
-
-  const ajouterAuPanier = (e: React.MouseEvent) => {
-    e.preventDefault()
-    const data = localStorage.getItem('batishop_panier')
-    const items = data ? JSON.parse(data) : []
-    const existe = items.find((a: any) => a.produit.id === produit.id)
-    const nouveau = existe
-      ? items.map((a: any) => a.produit.id === produit.id ? { ...a, quantite: a.quantite + 1 } : a)
-      : [...items, { produit, quantite: 1 }]
-    localStorage.setItem('batishop_panier', JSON.stringify(nouveau))
-    window.dispatchEvent(new Event('panier-updated'))
-    setAjoute(true)
-    setTimeout(() => setAjoute(false), 2000)
-  }
-
   const reduction = produit.prix_ancien
     ? Math.round((1 - produit.prix / produit.prix_ancien) * 100)
     : null
@@ -86,17 +69,9 @@ export function CarteProduit({ produit }: { produit: Produit }) {
           <span className="text-xs text-gray-400">/{produit.unite}</span>
         </div>
 
-        <button
-          onClick={ajouterAuPanier}
-          disabled={produit.stock === 0}
-          className={`w-full flex items-center justify-center gap-2 py-2 rounded text-xs font-semibold transition-colors ${
-            ajoute ? 'bg-green-600 text-white' :
-            produit.stock === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
-            'bg-acier text-white hover:bg-brique'
-          }`}>
-          <ShoppingCart size={14}/>
-          {ajoute ? '✓ Ajouté !' : produit.stock === 0 ? 'Indisponible' : 'Ajouter au panier'}
-        </button>
+        <div className="w-full text-center py-2 rounded text-xs font-semibold bg-acier text-white group-hover:bg-brique transition-colors">
+          Choisir où acheter →
+        </div>
       </div>
     </Link>
   )
