@@ -161,7 +161,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* CONSEILS & IDÉES */}
+      {/* CONSEILS & IDÉES — masqué temporairement (mettre {true && ...} pour réafficher) */}
+      {false && (
       <section className="max-w-7xl mx-auto px-4 mb-10">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -183,6 +184,7 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+      )}
 
       {/* NOS SERVICES */}
       <section className="max-w-7xl mx-auto px-4 mb-10">
