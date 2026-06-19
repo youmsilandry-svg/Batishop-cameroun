@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Store, MapPin, Truck, Package, Crosshair, Navigation } from 'lucide-react'
 import { formatPrix, supabase, VILLES } from '../../lib/supabase'
+import { SITE } from '../../lib/config'
 import { usePanier } from '../../lib/panier'
 
 export default function PageCommande() {
@@ -244,9 +245,24 @@ export default function PageCommande() {
               ))}
             </div>
             {form.paiement === 'en_ligne' && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                Le paiement en ligne (Campay) arrive bientôt. Pour l'instant, votre commande est enregistrée et nous vous contactons pour le règlement.
-              </p>
+              <div className="mt-3 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                <p className="font-semibold text-amber-800">Payez par Mobile Money</p>
+                <p className="text-xs text-amber-700">
+                  Envoyez le montant total <strong>{formatPrix(grandTotal)}</strong> à l'un de ces numéros
+                  (au nom de <strong>{SITE.momoNom}</strong>), puis confirmez votre commande. Nous validons dès réception.
+                </p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-amber-200">
+                    <span className="text-sm font-medium text-acier">🟠 Orange Money</span>
+                    <span className="font-bold text-brique">{SITE.momoOrange}</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-amber-200">
+                    <span className="text-sm font-medium text-acier">🟡 MTN MoMo</span>
+                    <span className="font-bold text-brique">{SITE.momoMtn}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-amber-700">Indiquez votre nom comme référence du transfert si possible.</p>
+              </div>
             )}
           </div>
         </div>
