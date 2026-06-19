@@ -1,31 +1,25 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { ShoppingCart, Check } from 'lucide-react'
+import { ShoppingCart, Heart, Eye } from 'lucide-react'
 import { Produit, formatPrix } from '../../lib/supabase'
-import BoutonFavori from './BoutonFavori'
 
 export function CarteProduit({ produit }: { produit: Produit }) {
-  const [dansPanier, setDansPanier] = useState(false)
+  const [ajoute, setAjoute] = useState(false)
 
-  useEffect(() => {
-    const check = () => {
-      try {
-        const data = localStorage.getItem('batishop_panier')
-        const items = data ? JSON.parse(data) : []
-        setDansPanier(items.some((a: any) => a.produit?.id === produit.id))
-      } catch { setDansPanier(false) }
-    }
-    check()
-    window.addEventListener('panier-updated', check)
-    window.addEventListener('storage', check)
-    document.addEventListener('visibilitychange', check)
-    return () => {
-      window.removeEventListener('panier-updated', check)
-      window.removeEventListener('storage', check)
-      document.removeEventListener('visibilitychange', check)
-    }
-  }, [produit.id])
+  const ajouterAuPanier = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const data = localStorage.getItem('batishop_panier')
+    const items = data ? JSON.parse(data) : []
+    const existe = items.find((a: any) => a.produit.id === produit.id)
+    const nouveau = existe
+      ? items.map((a: any) => a.produit.id === produit.id ? { ...a, quantite: a.quantite + 1 } : a)
+      : [...items, { produit, quantite: 1 }]
+    localStorage.setItem('batishop_panier', JSON.stringify(nouveau))
+    window.dispatchEvent(new Event('panier-updated'))
+    setAjoute(true)
+    setTimeout(() => setAjoute(false), 2000)
+  }
 
   const reduction = produit.prix_ancien
     ? Math.round((1 - produit.prix / produit.prix_ancien) * 100)
@@ -53,7 +47,14 @@ export function CarteProduit({ produit }: { produit: Produit }) {
             -{reduction}%
           </div>
         )}
-        <BoutonFavori produitId={produit.id} variant="card" />
+        {(produit as any).partenaire_exclusif && (
+          <div className="absolute top-2 left-2 bg-acier text-white text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1" style={{ marginTop: reduction ? 26 : 0 }}>
+            🔒 Exclusivité
+          </div>
+        )}
+        <button className="absolute top-2 right-2 bg-white/80 hover:bg-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+          <Heart size={14} className="text-brique"/>
+        </button>
         {produit.stock <= 5 && produit.stock > 0 && (
           <div className="absolute bottom-2 left-2 bg-amber-500 text-white text-xs px-2 py-0.5 rounded">
             Plus que {produit.stock} en stock
@@ -85,21 +86,17 @@ export function CarteProduit({ produit }: { produit: Produit }) {
           <span className="text-xs text-gray-400">/{produit.unite}</span>
         </div>
 
-        {/* Petite marque de rappel : produit déjà dans le panier */}
-        {dansPanier && (
-          <p className="text-xs text-green-600 font-medium mb-1.5 flex items-center gap-1">
-            <Check size={13}/> Déjà dans votre panier
-          </p>
-        )}
-
-        {/* Choisir où acheter (mène à la page produit pour choisir le partenaire) */}
-        <div
+        <button
+          onClick={ajouterAuPanier}
+          disabled={produit.stock === 0}
           className={`w-full flex items-center justify-center gap-2 py-2 rounded text-xs font-semibold transition-colors ${
-            produit.stock === 0 ? 'bg-gray-100 text-gray-400' : 'bg-acier text-white group-hover:bg-brique'
+            ajoute ? 'bg-green-600 text-white' :
+            produit.stock === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
+            'bg-acier text-white hover:bg-brique'
           }`}>
           <ShoppingCart size={14}/>
-          {produit.stock === 0 ? 'Indisponible' : 'Choisir où acheter'}
-        </div>
+          {ajoute ? '✓ Ajouté !' : produit.stock === 0 ? 'Indisponible' : 'Ajouter au panier'}
+        </button>
       </div>
     </Link>
   )
