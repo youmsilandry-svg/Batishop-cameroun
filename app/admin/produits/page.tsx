@@ -49,8 +49,13 @@ export default function AdminProduits() {
   const [saving, setSaving]       = useState(false)
   const [succes, setSucces]       = useState('')
   const [cats, setCats]           = useState<any[]>([TOUTES, ...CATEGORIES])
+  const [boutiquesAll, setBoutiquesAll] = useState<any[]>([])
 
   useEffect(() => { fetchCategories().then(list => setCats([TOUTES, ...list])) }, [])
+  useEffect(() => {
+    if (!auth) return
+    api('partenaires_magasins?select=id,nom,ville,quartier,statut&order=ville.asc').then((d: any) => setBoutiquesAll(Array.isArray(d) ? d : []))
+  }, [auth])
 
   const PER = 25
 
@@ -89,6 +94,7 @@ export default function AdminProduits() {
   const sauvegarder = async () => {
     setSaving(true)
     const { id, created_at, search_vector, ...rest } = form
+    if (rest.partenaire_exclusif === '' || rest.partenaire_exclusif === undefined) rest.partenaire_exclusif = null
     await api(`produits?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(rest) })
     setProduits(prev => prev.map(x => x.id === id ? { ...x, ...rest } : x))
     setDetail((d: any) => ({ ...d, ...rest }))
@@ -312,6 +318,11 @@ export default function AdminProduits() {
                     <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                       <span style={{ background:detail.actif?'#e8f5e9':'#fce8e8', color:detail.actif?'#2e7d32':'#c62828', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>{detail.actif?'✓ Visible':'✗ Masqué'}</span>
                       {detail.badge && <span style={{ background:'#fff0ee', color:'#C0392B', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>{detail.badge.toUpperCase()}</span>}
+                      {detail.partenaire_exclusif && (
+                        <span style={{ background:'#1A2332', color:'#fff', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>
+                          🔒 {detail.produit_partenaire ? 'Produit propre' : 'Exclusivité'} — {boutiquesAll.find(b=>b.id===detail.partenaire_exclusif)?.nom || '…'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -424,6 +435,7 @@ export default function AdminProduits() {
             {(ongletDetail === 'edit' || detail._new) && (
               <form onSubmit={e => { e.preventDefault(); detail._new ? (async()=>{
                 const {actif,...rest}=form
+                if (rest.partenaire_exclusif === '' || rest.partenaire_exclusif === undefined) rest.partenaire_exclusif = null
                 await api('produits', { method:'POST', body:JSON.stringify({...rest, actif:true}) })
                 setDetail(null); charger(page)
                 setSucces('✓ Produit créé')
@@ -442,6 +454,8 @@ export default function AdminProduits() {
                   { k:'badge',       l:'Badge',                type:'select-badge' },
                   { k:'image_url',   l:'URL image',            full:true },
                   { k:'description', l:'Description',          full:true, type:'textarea' },
+                  { k:'partenaire_exclusif', l:'🔒 Exclusivité — réservé à un partenaire', type:'select-exclusif', full:true },
+                  { k:'produit_partenaire', l:'Produit propre à ce partenaire (hors catalogue central)', type:'checkbox', full:true },
                 ].map(f => {
                   const v = form[f.k]
                   return (
@@ -472,6 +486,21 @@ export default function AdminProduits() {
                           <option value="promo">🏷 Promo</option>
                           <option value="solaire">☀️ Solaire</option>
                         </select>
+                      ) : f.type==='select-exclusif' ? (
+                        <div>
+                          <select value={v||''} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}>
+                            <option value="">Aucune — vendu par tous les partenaires</option>
+                            {boutiquesAll.filter(b=>b.statut==='actif').map(b=>(
+                              <option key={b.id} value={b.id}>{b.nom} — {b.ville}{b.quartier?` (${b.quartier})`:''}</option>
+                            ))}
+                          </select>
+                          {v && <div style={{ fontSize:11, color:'#C0392B', marginTop:6 }}>🔒 Ce produit ne sera vendable que par ce partenaire (partout).</div>}
+                        </div>
+                      ) : f.type==='checkbox' ? (
+                        <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'#555' }}>
+                          <input type="checkbox" checked={!!v} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.checked}))} style={{ width:18, height:18 }}/>
+                          Oui
+                        </label>
                       ) : f.type==='number' ? (
                         <input type="number" value={v??0} onChange={e=>setForm((p:any)=>({...p,[f.k]:Number(e.target.value)}))} style={{ ...S.input, width:'100%' }}/>
                       ) : (
