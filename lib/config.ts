@@ -19,4 +19,9 @@ export const SITE = {
 
   // Adresse
   adresse: 'Carrefour-Tsinga, Yaounde, Cameroun',
+
+  // Paiement mobile money — numéros où les CLIENTS envoient leur paiement
+  momoNom: 'BatiShop Cameroun',     // nom du compte qui reçoit l'argent
+  momoMtn: '+237 6XX XXX XXX',      // MTN Mobile Money
+  momoOrange: '+237 6XX XXX XXX',   // Orange Money
 }
