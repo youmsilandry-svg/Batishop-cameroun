@@ -59,6 +59,27 @@ export const CATEGORIES = [
   { id: 'assainissement',  label: 'Assainissement',  emoji: '💧', sous: ['Tuyaux PVC évacuation', 'Regards & Caniveaux', 'Fosses septiques', 'Pompes de relevage', 'Bouches & Grilles', 'Drainage', 'Stations de traitement', 'Accessoires évacuation'] },
 ]
 
+// Lit les catégories depuis la table Supabase (gérable dans Table Editor).
+// Repli automatique sur la liste statique CATEGORIES si la table est vide/indisponible.
+export async function fetchCategories() {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('slug,label,emoji,sous,ordre')
+      .eq('actif', true)
+      .order('ordre', { ascending: true })
+    if (error || !data || data.length === 0) return CATEGORIES
+    return data.map((c: any) => ({
+      id: c.slug,
+      label: c.label,
+      emoji: c.emoji || '📦',
+      sous: Array.isArray(c.sous) ? c.sous : [],
+    }))
+  } catch {
+    return CATEGORIES
+  }
+}
+
 export const VILLES = [
   'Douala', 'Yaoundé', 'Bafoussam', 'Garoua',
   'Bamenda', 'Maroua', 'Ngaoundéré', 'Bertoua',

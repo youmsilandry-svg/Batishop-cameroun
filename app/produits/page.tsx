@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
-import { supabase, Produit, CATEGORIES, formatPrix } from '../../lib/supabase'
+import { supabase, Produit, CATEGORIES, fetchCategories, formatPrix } from '../../lib/supabase'
 import { CarteProduit } from '../../components/produits/CarteProduit'
 
 const PRIX_MAX = 500000
@@ -19,6 +19,7 @@ function PageProduitsContent() {
   const [recherche, setRecherche] = useState(searchParams.get('q') || '')
   const [categorie, setCategorie] = useState(searchParams.get('categorie') || '')
   const [sousCategorie, setSousCategorie] = useState(searchParams.get('sousCategorie') || '')
+  const [cats, setCats] = useState<any[]>(CATEGORIES)
   const [prixMax, setPrixMax] = useState(PRIX_MAX)
   const [tri, setTri] = useState('pertinence')
   const [badge, setBadge] = useState('')
@@ -52,6 +53,7 @@ function PageProduitsContent() {
   }, [recherche, categorie, sousCategorie, prixMax, badge, tri, page])
 
   useEffect(() => { chargerProduits() }, [chargerProduits])
+  useEffect(() => { fetchCategories().then(setCats) }, [])
   useEffect(() => {
     setRecherche(searchParams.get('q') || '')
     setCategorie(searchParams.get('categorie') || '')
@@ -73,7 +75,7 @@ function PageProduitsContent() {
         <div>
           <h1 className="text-2xl font-condensed font-bold text-acier">
             {categorie
-              ? CATEGORIES.find(c => c.id === categorie)?.label || 'Produits'
+              ? cats.find(c => c.id === categorie)?.label || 'Produits'
               : recherche ? `Résultats pour "${recherche}"` : 'Tous les produits'}
           </h1>
           {!loading && <p className="text-sm text-gray-500">{total} produit{total > 1 ? 's' : ''} trouvé{total > 1 ? 's' : ''}</p>}
@@ -123,7 +125,7 @@ function PageProduitsContent() {
                   className={`w-full text-left text-sm px-2 py-1.5 rounded ${!categorie ? 'bg-brique text-white' : 'hover:bg-beton'}`}>
                   Toutes
                 </button>
-                {CATEGORIES.map(c => (
+                {cats.map(c => (
                   <div key={c.id}>
                     <button onClick={() => { setCategorie(c.id); setSousCategorie(''); setPage(1) }}
                       className={`w-full text-left text-sm px-2 py-1.5 rounded flex items-center gap-2 ${categorie === c.id ? 'bg-brique text-white' : 'hover:bg-beton'}`}>
