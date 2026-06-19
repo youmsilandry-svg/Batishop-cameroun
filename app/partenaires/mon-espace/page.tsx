@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { SITE } from '../../../lib/config'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -330,7 +331,7 @@ export default function EspacePartenaire() {
         <div style={{ background: '#fce8e8', borderRadius: 10, padding: 14, marginBottom: 16, textAlign: 'left', fontSize: 13 }}>
           Votre compte n’est pas actif sur BatiShop. Contactez-nous pour en savoir plus.
         </div>
-        <a href="tel:+237600000000" style={{ display: 'inline-block', padding: '10px 24px', background: '#C0392B', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 700 }}>📞 Contacter BatiShop</a>
+        <a href={`tel:${SITE.telLien}`} style={{ display: 'inline-block', padding: '10px 24px', background: '#C0392B', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 700 }}>📞 Contacter BatiShop</a>
       </div>
     </div>
   )
@@ -837,7 +838,7 @@ export default function EspacePartenaire() {
 
               <div style={{ gridColumn: '1/-1', paddingTop: 4 }}>
                 <div style={{ background: '#fff3cd', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#856404', marginBottom: 12 }}>
-                  ⚠️ Votre prix et votre stock se gèrent dans l'onglet « Mes produits ». Votre statut est géré par BatiShop. Pour toute question : <a href="tel:+237600000000" style={{ color: '#C0392B' }}>+237 6XX XXX XXX</a>
+                  ⚠️ Votre prix et votre stock se gèrent dans l'onglet « Mes produits ». Votre statut est géré par BatiShop. Pour toute question : <a href={`tel:${SITE.telLien}`} style={{ color: '#C0392B' }}>{SITE.tel}</a>
                 </div>
                 <button type="submit" disabled={saving} style={S.btn(saving ? '#ccc' : undefined)}>
                   {saving ? 'Sauvegarde…' : '✓ Enregistrer les modifications'}

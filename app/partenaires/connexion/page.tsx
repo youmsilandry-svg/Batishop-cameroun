@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { SITE } from '../../../lib/config'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -15,41 +16,26 @@ export default function ConnexionPartenaire() {
 
   useEffect(() => {
     const token = localStorage.getItem('batishop_partenaire_token')
-    if (!token) return
-    // Ne rediriger que si le token est encore valide (sinon on le nettoie et on reste sur le formulaire)
-    fetch(`${URL}/auth/v1/user`, { headers: { apikey: KEY, Authorization: `Bearer ${token}` } })
-      .then(r => {
-        if (r.ok) router.push('/partenaires/mon-espace')
-        else {
-          localStorage.removeItem('batishop_partenaire_token')
-          localStorage.removeItem('batishop_partenaire_user')
-        }
-      })
-      .catch(() => {})
+    if (token) router.push('/partenaires/mon-espace')
   }, [router])
 
   const seConnecter = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true); setErreur('')
-    try {
-      const res = await fetch(`${URL}/auth/v1/token?grant_type=password`, {
-        method: 'POST',
-        headers: { 'apikey': KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pwd })
-      })
-      const data = await res.json()
-      if (data.access_token) {
-        localStorage.setItem('batishop_partenaire_token', data.access_token)
-        localStorage.setItem('batishop_partenaire_user', JSON.stringify(data.user))
-        router.push('/partenaires/mon-espace')
-      } else {
-        setErreur(data.error_description || data.msg || 'Email ou mot de passe incorrect')
-        setLoading(false)
-      }
-    } catch {
-      setErreur('Connexion impossible. Vérifiez votre réseau et réessayez.')
-      setLoading(false)
+    const res = await fetch(`${URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pwd })
+    })
+    const data = await res.json()
+    if (data.access_token) {
+      localStorage.setItem('batishop_partenaire_token', data.access_token)
+      localStorage.setItem('batishop_partenaire_user', JSON.stringify(data.user))
+      router.push('/partenaires/mon-espace')
+    } else {
+      setErreur('Email ou mot de passe incorrect')
     }
+    setLoading(false)
   }
 
   return (
@@ -82,7 +68,7 @@ export default function ConnexionPartenaire() {
           <a href="/partenaires" style={{ color: '#C0392B', textDecoration: 'none', fontWeight: 600 }}>Postuler ici</a>
         </div>
         <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, color: '#bbb' }}>
-          Problème ? <a href="tel:+237600000000" style={{ color: '#C0392B', textDecoration: 'none' }}>+237 6XX XXX XXX</a>
+          Problème ? <a href={`tel:${SITE.telLien}`} style={{ color: '#C0392B', textDecoration: 'none' }}>{SITE.tel}</a>
         </div>
       </div>
     </div>

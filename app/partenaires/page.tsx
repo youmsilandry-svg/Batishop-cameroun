@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { Store, TrendingUp, Tag, Package, Users, MapPin, ArrowRight, Phone } from 'lucide-react'
-import FormulaireCandidature from './FormulaireCandidature'
+import { Store, TrendingUp, Tag, Package, Users, MapPin, ArrowRight, Phone, Mail } from 'lucide-react'
+import { SITE } from '../../lib/config'
 
 export const metadata = {
   title: 'Devenir partenaire — BatiShop Cameroun',
@@ -15,11 +15,17 @@ const AVANTAGES = [
 ]
 
 const ETAPES = [
-  ['1', 'Vous postulez', 'Remplissez le formulaire de candidature ci-dessous. Nous vérifions votre activité.'],
+  ['1', 'Vous postulez', 'Envoyez-nous votre candidature. Nous vérifions votre quincaillerie.'],
   ['2', 'Nous créons votre compte', 'Vous recevez vos identifiants pour accéder à votre espace partenaire.'],
   ['3', 'Vous publiez vos produits', 'Choisissez vos produits, fixez vos prix et déclarez vos stocks.'],
   ['4', 'Les clients vous trouvent', 'Votre magasin apparaît dans les résultats de recherche de votre ville.'],
 ]
+
+const SUJET = encodeURIComponent('Candidature partenaire BatiShop')
+const CORPS = encodeURIComponent(
+  "Bonjour,\n\nJe souhaite rejoindre le réseau de partenaires BatiShop.\n\n" +
+  "- Nom du magasin :\n- Ville :\n- Quartier / adresse :\n- Téléphone :\n- Type de produits vendus :\n\nMerci."
+)
 
 export default function PartenairesPage() {
   return (
@@ -30,13 +36,15 @@ export default function PartenairesPage() {
           <div className="w-16 h-16 rounded-2xl bg-brique flex items-center justify-center mx-auto mb-5">
             <Store size={30} className="text-white" />
           </div>
-          <h1 className="font-condensed font-bold text-3xl sm:text-4xl mb-3">Devenez partenaire BatiShop</h1>
+          <h1 className="font-condensed font-bold text-3xl sm:text-4xl mb-3">
+            Devenez partenaire BatiShop
+          </h1>
           <p className="text-white/70 max-w-2xl mx-auto mb-8">
-            Rejoignez le réseau des quincailleries et professionnels de référence au Cameroun.
-            Affichez vos produits, fixez vos prix et touchez de nouveaux clients — gratuitement.
+            Rejoignez le réseau des quincailleries de référence au Cameroun. Affichez vos produits,
+            fixez vos prix et touchez de nouveaux clients dans votre ville — gratuitement.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
-            <a href="#candidature"
+            <a href={`mailto:${SITE.emailPartenaires}?subject=${SUJET}&body=${CORPS}`}
               className="inline-flex items-center gap-2 bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded-lg transition-colors">
               Rejoindre le réseau <ArrowRight size={18} />
             </a>
@@ -50,7 +58,9 @@ export default function PartenairesPage() {
 
       {/* AVANTAGES */}
       <section className="max-w-5xl mx-auto px-4 py-14">
-        <h2 className="font-condensed font-bold text-2xl text-acier text-center mb-10">Pourquoi rejoindre BatiShop ?</h2>
+        <h2 className="font-condensed font-bold text-2xl text-acier text-center mb-10">
+          Pourquoi rejoindre BatiShop ?
+        </h2>
         <div className="grid sm:grid-cols-2 gap-5">
           {AVANTAGES.map(a => (
             <div key={a.titre} className="bg-white rounded-2xl border border-gray-100 p-6 flex gap-4">
@@ -69,11 +79,15 @@ export default function PartenairesPage() {
       {/* COMMENT ÇA MARCHE */}
       <section className="bg-white border-y border-gray-100">
         <div className="max-w-5xl mx-auto px-4 py-14">
-          <h2 className="font-condensed font-bold text-2xl text-acier text-center mb-10">Comment ça marche ?</h2>
+          <h2 className="font-condensed font-bold text-2xl text-acier text-center mb-10">
+            Comment ça marche ?
+          </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {ETAPES.map(([num, titre, desc]) => (
               <div key={num} className="text-center">
-                <div className="w-11 h-11 rounded-full bg-acier text-white font-bold flex items-center justify-center mx-auto mb-3">{num}</div>
+                <div className="w-11 h-11 rounded-full bg-acier text-white font-bold flex items-center justify-center mx-auto mb-3">
+                  {num}
+                </div>
                 <h3 className="font-bold text-acier text-sm mb-1">{titre}</h3>
                 <p className="text-xs text-gray-500">{desc}</p>
               </div>
@@ -82,19 +96,30 @@ export default function PartenairesPage() {
         </div>
       </section>
 
-      {/* CANDIDATURE */}
-      <section id="candidature" className="max-w-3xl mx-auto px-4 py-16 scroll-mt-20">
-        <div className="text-center mb-8">
-          <MapPin size={28} className="text-brique mx-auto mb-3" />
-          <h2 className="font-condensed font-bold text-2xl text-acier mb-2">Déposez votre candidature</h2>
-          <p className="text-gray-500">Remplissez ce formulaire — c'est gratuit et sans engagement.</p>
+      {/* CTA FINAL */}
+      <section className="max-w-3xl mx-auto px-4 py-16 text-center">
+        <MapPin size={28} className="text-brique mx-auto mb-3" />
+        <h2 className="font-condensed font-bold text-2xl text-acier mb-2">
+          Prêt à développer votre activité ?
+        </h2>
+        <p className="text-gray-500 mb-8">
+          Envoyez-nous votre candidature dès aujourd'hui. C'est gratuit et sans engagement.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+          <a href={`mailto:${SITE.emailPartenaires}?subject=${SUJET}&body=${CORPS}`}
+            className="inline-flex items-center gap-2 bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded-lg transition-colors">
+            <Mail size={18} /> Postuler par email
+          </a>
+          <a href={`tel:${SITE.telLien}`}
+            className="inline-flex items-center gap-2 border border-gray-300 hover:border-brique hover:text-brique text-gray-600 font-semibold px-6 py-3 rounded-lg transition-colors">
+            <Phone size={18} /> Nous appeler
+          </a>
         </div>
-        <FormulaireCandidature />
-        <p className="text-sm text-gray-400 mt-8 text-center flex flex-col sm:flex-row gap-2 justify-center items-center">
-          <span>Une question ?</span>
-          <a href="tel:+237600000000" className="inline-flex items-center gap-1 text-brique font-semibold hover:underline"><Phone size={14} /> Nous appeler</a>
-          <span className="hidden sm:inline">·</span>
-          <Link href="/partenaires/connexion" className="text-brique font-semibold hover:underline">Déjà partenaire ? Accéder à mon espace</Link>
+        <p className="text-sm text-gray-400 mt-6">
+          Déjà partenaire ?{' '}
+          <Link href="/partenaires/connexion" className="text-brique font-semibold hover:underline">
+            Accéder à mon espace
+          </Link>
         </p>
       </section>
     </div>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SITE } from '../../lib/config'
 
 export function Footer() {
   return (
@@ -13,8 +14,9 @@ export function Footer() {
           <p className="text-sm text-white/60 leading-relaxed mb-4">
             Votre partenaire de confiance pour tous vos matériaux de construction au Cameroun.
           </p>
-          <div className="text-sm text-or font-medium">📞 +237 6XX XXX XXX</div>
-          <div className="text-sm text-white/60 mt-1">✉️ contact@batishop.cm</div>
+          <div className="text-sm text-or font-medium">📞 {SITE.tel}</div>
+          <div className="text-sm text-white/60 mt-1">✉️ {SITE.email}</div>
+          <div className="text-sm text-white/60 mt-1">📍 {SITE.adresse}</div>
         </div>
 
         {/* Catégories */}
@@ -68,15 +70,15 @@ export function Footer() {
             className="block text-sm text-white/60 hover:text-or py-0.5">
             👷 Partenaire professionnel
           </Link>
-          <Link href="/partenaires#candidature"
+          <Link href="/partenaires"
             className="block text-sm text-white/60 hover:text-or py-0.5">
             📋 Soumettre une candidature
           </Link>
-          <Link href="mailto:partenaires@batishop.cm"
+          <Link href={`mailto:${SITE.emailPartenaires}`}
             className="block text-sm text-white/60 hover:text-or py-0.5">
-            ✉️ partenaires@batishop.cm
+            ✉️ {SITE.emailPartenaires}
           </Link>
-          <Link href="/partenaires#candidature"
+          <Link href="/partenaires"
             className="inline-block mt-3 bg-brique hover:bg-brique-dark text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors">
             Rejoindre le réseau →
           </Link>
@@ -103,7 +105,7 @@ export function Footer() {
             🤝 <span className="text-white/70 font-medium">Vous êtes une quincaillerie ou un professionnel du bâtiment ?</span>{' '}
             Rejoignez le réseau BatiShop Cameroun.
           </div>
-          <Link href="/partenaires#candidature"
+          <Link href="/partenaires"
             className="shrink-0 bg-or hover:bg-or-light text-acier font-bold text-sm px-5 py-2 rounded-lg transition-colors">
             Devenir partenaire →
           </Link>

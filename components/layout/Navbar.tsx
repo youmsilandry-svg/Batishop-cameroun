@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ShoppingCart, User, Heart, Search, Menu, X, Phone, ChevronRight, ChevronDown } from 'lucide-react'
 import { CATEGORIES, fetchCategories } from '../../lib/supabase'
+import { SITE } from '../../lib/config'
 
 
 export function Navbar() {
@@ -60,8 +61,8 @@ export function Navbar() {
     <header className="sticky top-0 z-50 shadow-md">
       <div className="bg-acier text-white text-xs py-1.5 px-4 flex justify-between items-center">
         <span>📍 Livraison dans tout le Cameroun sous 48h</span>
-        <a href="tel:+237600000000" className="flex items-center gap-1 text-or hover:underline">
-          <Phone size={12}/> +237 6XX XXX XXX
+        <a href={`tel:${SITE.telLien}`} className="flex items-center gap-1 text-or hover:underline">
+          <Phone size={12}/> {SITE.tel}
         </a>
       </div>
 
