@@ -228,7 +228,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                           </div>
                           <button onClick={() => ajouterPartenaire(s)} disabled={!produit || getQte(mag.id) < 1}
                             className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${ajoute[mag.id] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
-                            {ajoute[mag.id] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter — {formatPrix(s.prix_local || produit?.prix || 0)}</>}
+                            {ajoute[mag.id] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> {s.prix_local > 0 ? `Ajouter — ${formatPrix(s.prix_local)}` : 'Ajouter au panier'}</>}
                           </button>
                         </div>
                       </div>
