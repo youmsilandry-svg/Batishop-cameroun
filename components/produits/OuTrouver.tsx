@@ -179,20 +179,6 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
               </div>
             </div>
 
-            {/* Prix moyen partenaires */}
-            {prixMoyen && prixMoyen.nb_partenaires > 0 && (
-              <div className="flex items-center justify-between gap-3 p-3 bg-acier/5 border border-acier/10 rounded-xl mb-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prix moyen en magasin</p>
-                  <p className="text-xs text-gray-400">
-                    Sur {prixMoyen.nb_partenaires} magasin{prixMoyen.nb_partenaires > 1 ? 's' : ''} partenaire{prixMoyen.nb_partenaires > 1 ? 's' : ''}
-                    {prixMoyen.prix_min !== prixMoyen.prix_max && (<> · de {formatPrix(prixMoyen.prix_min)} à {formatPrix(prixMoyen.prix_max)}</>)}
-                  </p>
-                </div>
-                <span className="font-condensed font-bold text-lg text-acier shrink-0">{formatPrix(prixMoyen.prix_moyen)}</span>
-              </div>
-            )}
-
             {/* Partenaires locaux */}
             {partenaires.length > 0 ? (
               <div className="space-y-2">
