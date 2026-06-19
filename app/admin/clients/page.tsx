@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
-import { apiAdmin as api } from '../../../lib/adminApi'
+import { apiAdmin as api, adminHeaders } from '../../../lib/adminApi'
 
 const BASE = process.env.NEXT_PUBLIC_SUPABASE_URL||''
 const KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||''
@@ -32,7 +32,7 @@ export default function AdminClients() {
     setLoading(true); setPage(p)
     let url = `profils?select=*&order=created_at.desc&offset=${(p-1)*PER}&limit=${PER}`
     if(q) url += `&nom=ilike.*${encodeURIComponent(q)}*`
-    const res = await fetch(`${BASE}/rest/v1/${url}`, { headers:{'apikey':KEY,'Authorization':`Bearer ${KEY}`,'Prefer':'count=exact'}})
+    const res = await fetch(`${BASE}/rest/v1/${url}`, { headers: await adminHeaders({ 'Prefer': 'count=exact' }) })
     setTotal(parseInt(res.headers.get('content-range')?.split('/')[1]||'0'))
     const data = await res.json().catch(()=>[])
     setClients(Array.isArray(data)?data:[])
