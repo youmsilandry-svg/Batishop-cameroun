@@ -1,6 +1,13 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import '../styles/globals.css'
 import SiteChrome from '../components/layout/SiteChrome'
+import PWA from '../components/PWA'
+
+export const viewport: Viewport = {
+  themeColor: '#1A2332',
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://batishop-cameroun.com'),
@@ -8,6 +15,7 @@ export const metadata: Metadata = {
   title: 'BatiShop Cameroun — Matériaux de Construction',
   description: 'Achetez vos matériaux de construction en ligne au Cameroun. Maçonnerie, plomberie, électricité, carrelage, panneaux solaires livrés partout au Cameroun.',
   keywords: 'matériaux construction cameroun, ciment, plomberie, carrelage, panneaux solaires, douala, yaoundé',
+  appleWebApp: { capable: true, title: 'BatiShop', statusBarStyle: 'default' },
   openGraph: {
     title: 'BatiShop Cameroun',
     description: 'N°1 des matériaux de construction en ligne au Cameroun',
@@ -24,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         '@type': 'Organization',
         name: 'BatiShop Cameroun',
         url: 'https://batishop-cameroun.com',
-        logo: 'https://batishop-cameroun.com/icon.svg',
+        logo: 'https://batishop-cameroun.com/icon-512.png',
         description: 'Matériaux de construction en ligne au Cameroun : maçonnerie, plomberie, électricité, carrelage, énergie solaire.',
         areaServed: 'CM',
       },
@@ -44,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <PWA />
         <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
