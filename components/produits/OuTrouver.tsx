@@ -67,6 +67,15 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
     }
     list = [...list].sort((a: any, b: any) => (b.mis_en_avant ? 1 : 0) - (a.mis_en_avant ? 1 : 0))
     setPartenaires(list)
+    // Quantité forcée à 0 pour les partenaires sans prix renseigné (achat impossible)
+    setQtes(prev => {
+      const next = { ...prev }
+      list.forEach((s: any) => {
+        const id = s.partenaires_magasins?.id
+        if (id && !(s.prix_local > 0)) next[id] = 0
+      })
+      return next
+    })
     setLoading(false)
   }
 
@@ -92,23 +101,24 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
   }
 
   // Sélecteur de quantité éditable (0 → max stock)
-  const Stepper = ({ k, max }: { k: string; max: number }) => (
-    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
-      <button onClick={() => setQte(k, getQte(k) - 1, max)} disabled={getQte(k) <= 0}
+  const Stepper = ({ k, max, disabled = false }: { k: string; max: number; disabled?: boolean }) => (
+    <div className={`flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white ${disabled ? 'opacity-50' : ''}`}>
+      <button onClick={() => setQte(k, getQte(k) - 1, max)} disabled={disabled || getQte(k) <= 0}
         className="px-2 py-1 hover:bg-beton text-acier disabled:opacity-40 disabled:cursor-not-allowed"><Minus size={12}/></button>
       <input
         type="number"
         value={getQte(k)}
         min={0}
         max={max}
+        disabled={disabled}
         onChange={e => {
           const val = parseInt(e.target.value)
           setQte(k, isNaN(val) ? 0 : val, max)
         }}
-        className="w-12 text-center text-xs font-semibold border-x border-gray-200 py-1 focus:outline-none bg-white"
+        className="w-12 text-center text-xs font-semibold border-x border-gray-200 py-1 focus:outline-none bg-white disabled:cursor-not-allowed"
         style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
       />
-      <button onClick={() => setQte(k, getQte(k) + 1, max)} disabled={getQte(k) >= max}
+      <button onClick={() => setQte(k, getQte(k) + 1, max)} disabled={disabled || getQte(k) >= max}
         className="px-2 py-1 hover:bg-beton text-acier disabled:opacity-40 disabled:cursor-not-allowed"><Plus size={12}/></button>
     </div>
   )
@@ -218,7 +228,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                         )}
                         <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
                           <div className="flex items-center gap-2">
-                            <Stepper k={mag.id} max={s.quantite || 0}/>
+                            <Stepper k={mag.id} max={s.quantite || 0} disabled={!(s.prix_local > 0)}/>
                             {mag.latitude && (
                               <a href={`https://maps.google.com/?q=${mag.latitude},${mag.longitude}`} target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-1 border border-gray-200 text-gray-500 text-xs px-2.5 py-1.5 rounded-lg hover:text-brique hover:border-brique">
@@ -226,7 +236,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                               </a>
                             )}
                           </div>
-                          <button onClick={() => ajouterPartenaire(s)} disabled={!produit || getQte(mag.id) < 1}
+                          <button onClick={() => ajouterPartenaire(s)} disabled={!produit || !(s.prix_local > 0) || getQte(mag.id) < 1}
                             className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${ajoute[mag.id] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
                             {ajoute[mag.id] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> {s.prix_local > 0 ? `Ajouter — ${formatPrix(s.prix_local)}` : 'Ajouter au panier'}</>}
                           </button>
