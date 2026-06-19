@@ -4,16 +4,25 @@ import { MapPin, Clock, Navigation, Store, Package, Zap, ShoppingCart, Minus, Pl
 import { supabase, VILLES, formatPrix } from '../../lib/supabase'
 import { ajouterLignePanier } from '../../lib/panier'
 
-const DELAIS = [
-  { id: 'maintenant', label: 'Maintenant', icon: '⚡', color: 'bg-green-100 text-green-800 border-green-300' },
-  { id: 'aujourd_hui', label: "Aujourd'hui", icon: '🌅', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-  { id: 'demain', label: 'Demain', icon: '📅', color: 'bg-purple-100 text-purple-800 border-purple-300' },
-  { id: 'semaine', label: 'Cette semaine', icon: '📆', color: 'bg-amber-100 text-amber-800 border-amber-300' },
+const TRIS = [
+  { id: 'pertinence', label: 'Pertinence', icon: '⭐' },
+  { id: 'prix',       label: 'Prix',        icon: '💰' },
+  { id: 'proche',     label: 'Plus proche', icon: '📍' },
 ]
+
+// Distance approximative (km) entre deux points GPS
+const haversine = (la1: number, lo1: number, la2: number, lo2: number) => {
+  const R = 6371, toRad = (d: number) => d * Math.PI / 180
+  const dLat = toRad(la2 - la1), dLon = toRad(lo2 - lo1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(la1)) * Math.cos(toRad(la2)) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
 
 export function OuTrouver({ produitId, produitNom }: { produitId: string; produitNom: string }) {
   const [ville, setVille] = useState('Douala')
-  const [delai, setDelai] = useState('maintenant')
+  const [tri, setTri] = useState('pertinence')
+  const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null)
+  const [geoErr, setGeoErr] = useState('')
   const [partenaires, setPartenaires] = useState<any[]>([])
   const [prixMoyen, setPrixMoyen] = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -79,7 +88,47 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
     setLoading(false)
   }
 
-  useEffect(() => { chercher() }, [ville, delai, produit, exclVille])
+  useEffect(() => { chercher() }, [ville, produit, exclVille])
+
+  // Demander la position du client pour le tri "Plus proche"
+  const demanderPosition = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGeoErr('Géolocalisation non disponible sur cet appareil.'); return
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => { setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGeoErr('') },
+      () => setGeoErr('Localisation refusée — impossible de classer par proximité.')
+    )
+  }
+
+  const choisirTri = (id: string) => {
+    setTri(id)
+    if (id === 'proche' && !position) demanderPosition()
+  }
+
+  const distanceDe = (s: any) => {
+    const m = s.partenaires_magasins
+    if (!position || m?.latitude == null || m?.longitude == null) return null
+    return haversine(position.lat, position.lng, Number(m.latitude), Number(m.longitude))
+  }
+
+  // Liste triée selon le critère choisi
+  const partenairesTries = [...partenaires].sort((a: any, b: any) => {
+    const enAvant = (x: any) => (x.mis_en_avant ? 1 : 0)
+    if (tri === 'prix') {
+      const pa = a.prix_local > 0 ? a.prix_local : Infinity
+      const pb = b.prix_local > 0 ? b.prix_local : Infinity
+      if (pa !== pb) return pa - pb
+      return enAvant(b) - enAvant(a)
+    }
+    if (tri === 'proche') {
+      const da = distanceDe(a) ?? Infinity
+      const db = distanceDe(b) ?? Infinity
+      if (da !== db) return da - db
+      return enAvant(b) - enAvant(a)
+    }
+    return enAvant(b) - enAvant(a)
+  })
 
   const feedback = (k: string) => { setAjoute(p => ({ ...p, [k]: true })); setTimeout(() => setAjoute(p => ({ ...p, [k]: false })), 1800) }
 
@@ -137,16 +186,22 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
             </select>
           </div>
           <div className="flex-1 min-w-32">
-            <label className="text-xs font-semibold text-gray-400 block mb-1">Quand ?</label>
+            <label className="text-xs font-semibold text-gray-400 block mb-1">Trier par</label>
             <div className="flex gap-1 flex-wrap">
-              {DELAIS.map(d => (
-                <button key={d.id} onClick={() => setDelai(d.id)}
+              {TRIS.map(t => (
+                <button key={t.id} onClick={() => choisirTri(t.id)}
                   className={`text-xs px-2.5 py-1.5 rounded-full border font-medium transition-colors ${
-                    delai === d.id ? d.color : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                  {d.icon} {d.label}
+                    tri === t.id ? 'bg-brique/10 text-brique border-brique/40' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  {t.icon} {t.label}
                 </button>
               ))}
             </div>
+            {tri === 'proche' && geoErr && (
+              <p className="text-xs text-amber-600 mt-1">{geoErr}</p>
+            )}
+            {tri === 'proche' && !geoErr && !position && (
+              <p className="text-xs text-gray-400 mt-1">Autorisez la localisation pour classer par proximité…</p>
+            )}
           </div>
         </div>
       </div>
@@ -185,7 +240,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   🏪 {partenaires.length} partenaire{partenaires.length > 1 ? 's' : ''} à {ville}
                 </p>
-                {partenaires.map((s: any, i: number) => {
+                {partenairesTries.map((s: any, i: number) => {
                   const mag = s.partenaires_magasins
                   return (
                     <div key={i} className="flex items-start gap-3 p-3 bg-beton rounded-xl">
@@ -204,6 +259,9 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                           <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">{s.quantite} en stock</span>
                           {s.disponible_immediat && (
                             <span className="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5"><Zap size={9}/> Retrait immédiat</span>
+                          )}
+                          {tri === 'proche' && distanceDe(s) != null && (
+                            <span className="text-xs bg-acier/10 text-acier px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5"><MapPin size={9}/> ~{distanceDe(s)!.toFixed(1)} km</span>
                           )}
                         </div>
                         <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
