@@ -50,6 +50,9 @@ export default function AdminProduits() {
   const [succes, setSucces]       = useState('')
   const [cats, setCats]           = useState<any[]>([TOUTES, ...CATEGORIES])
   const [boutiquesAll, setBoutiquesAll] = useState<any[]>([])
+  const [exclusivitesVille, setExclusivitesVille] = useState<any[]>([])
+  const [nvExclVille, setNvExclVille] = useState('')
+  const [nvExclPart, setNvExclPart]   = useState('')
 
   useEffect(() => { fetchCategories().then(list => setCats([TOUTES, ...list])) }, [])
   useEffect(() => {
@@ -84,10 +87,12 @@ export default function AdminProduits() {
   useEffect(() => { if (auth) charger(1) }, [auth, cat, stockF])
 
   const ouvrirDetail = async (p: any) => {
-    setDetail(p); setForm({ ...p }); setOngletDetail('infos'); setPartenairesStock([])
+    setDetail(p); setForm({ ...p }); setOngletDetail('infos'); setPartenairesStock([]); setExclusivitesVille([])
     setLoadingDetail(true)
-    const stocks = await api(`stocks_partenaires?produit_id=eq.${p.id}&select=quantite,disponible_immediat,partenaires_magasins(nom,ville,quartier,telephone,statut)&order=quantite.desc`)
+    const stocks = await api(`stocks_partenaires?produit_id=eq.${p.id}&select=id,partenaire_id,quantite,disponible_immediat,mis_en_avant,partenaires_magasins(nom,ville,quartier,telephone,statut)&order=quantite.desc`)
     setPartenairesStock(Array.isArray(stocks) ? stocks.filter((s:any) => s.partenaires_magasins?.statut === 'actif') : [])
+    const excl = await api(`exclusivites_ville?produit_id=eq.${p.id}&select=id,ville,partenaire_id,actif&order=ville.asc`)
+    setExclusivitesVille(Array.isArray(excl) ? excl : [])
     setLoadingDetail(false)
   }
 
@@ -116,6 +121,29 @@ export default function AdminProduits() {
     charger(page)
   }
 
+  const toggleMiseEnAvant = async (row: any) => {
+    const val = !row.mis_en_avant
+    await api(`stocks_partenaires?id=eq.${row.id}`, { method: 'PATCH', body: JSON.stringify({ mis_en_avant: val }) })
+    setPartenairesStock(prev => prev.map(s => s.id === row.id ? { ...s, mis_en_avant: val } : s))
+  }
+
+  const ajouterExclVille = async () => {
+    if (!nvExclVille || !nvExclPart) return
+    // Une seule exclusivité par (produit, ville) : on remplace l'éventuelle existante
+    await api(`exclusivites_ville?produit_id=eq.${detail.id}&ville=eq.${encodeURIComponent(nvExclVille)}`, { method: 'DELETE' })
+    await api('exclusivites_ville', { method: 'POST', body: JSON.stringify({ produit_id: detail.id, ville: nvExclVille, partenaire_id: nvExclPart, actif: true }) })
+    const excl = await api(`exclusivites_ville?produit_id=eq.${detail.id}&select=id,ville,partenaire_id,actif&order=ville.asc`)
+    setExclusivitesVille(Array.isArray(excl) ? excl : [])
+    setNvExclVille(''); setNvExclPart('')
+    setSucces('✓ Exclusivité ville ajoutée'); setTimeout(() => setSucces(''), 2000)
+  }
+
+  const supprimerExclVille = async (id: string) => {
+    await api(`exclusivites_ville?id=eq.${id}`, { method: 'DELETE' })
+    setExclusivitesVille(prev => prev.filter(e => e.id !== id))
+  }
+
+  const villesDispo = Array.from(new Set(boutiquesAll.filter(b => b.statut === 'actif').map(b => b.ville).filter(Boolean))).sort()
   const totalStockPartenaires = partenairesStock.reduce((s, x) => s + (x.quantite || 0), 0)
   const nbPages = Math.ceil(total / PER)
 
@@ -394,7 +422,7 @@ export default function AdminProduits() {
                     <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                       <thead>
                         <tr style={{ background:'#f9f9f7' }}>
-                          {['Partenaire','Ville','Téléphone','Stock','Statut'].map(h => (
+                          {['Partenaire','Ville','Téléphone','Stock','Statut','Mise en avant'].map(h => (
                             <th key={h} style={{ padding:'9px 14px', textAlign:'left', fontSize:11, fontWeight:700, color:'#888', textTransform:'uppercase', borderBottom:'1px solid #eee' }}>{h}</th>
                           ))}
                         </tr>
@@ -421,6 +449,13 @@ export default function AdminProduits() {
                                   {s.disponible_immediat ? '⚡ Immédiat' : '📅 Sur commande'}
                                 </span>
                               </td>
+                              <td style={{ padding:'9px 14px', borderBottom:'1px solid #f5f5f5' }}>
+                                <button onClick={() => toggleMiseEnAvant(s)}
+                                  style={{ border:'none', cursor:'pointer', borderRadius:20, padding:'4px 12px', fontSize:11, fontWeight:700, fontFamily:'inherit',
+                                    background: s.mis_en_avant ? '#D4A853' : '#f0f0f0', color: s.mis_en_avant ? '#1A2332' : '#999' }}>
+                                  {s.mis_en_avant ? '⭐ Officiel' : '☆ Normal'}
+                                </button>
+                              </td>
                             </tr>
                           )
                         })}
@@ -428,10 +463,47 @@ export default function AdminProduits() {
                     </table>
                   )}
                 </div>
+
+                {/* Exclusivité par ville */}
+                <div style={{ background:'#fff', borderRadius:12, border:'1px solid #e8e8e8', overflow:'hidden', marginTop:16 }}>
+                  <div style={{ padding:'12px 16px', borderBottom:'1px solid #f0f0f0', fontWeight:700, fontSize:14, color:'#1A2332' }}>
+                    🏙️ Exclusivité par ville
+                    <span style={{ fontWeight:400, fontSize:12, color:'#999', marginLeft:8 }}>un seul partenaire vend ce produit dans la ville choisie</span>
+                  </div>
+
+                  {exclusivitesVille.length > 0 && (
+                    <div style={{ padding:'8px 16px' }}>
+                      {exclusivitesVille.map(e => (
+                        <div key={e.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f5f5f5' }}>
+                          <div style={{ fontSize:13 }}>
+                            <span style={{ fontWeight:700, color:'#1A2332' }}>📍 {e.ville}</span>
+                            <span style={{ color:'#888' }}> → {boutiquesAll.find(b=>b.id===e.partenaire_id)?.nom || 'Partenaire'}</span>
+                          </div>
+                          <button onClick={() => supprimerExclVille(e.id)}
+                            style={{ ...S.btn('#fce8e8','#c62828'), padding:'4px 10px' }}>🗑 Retirer</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ padding:'12px 16px', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', background:'#fafafa' }}>
+                    <select value={nvExclVille} onChange={e => { setNvExclVille(e.target.value); setNvExclPart('') }}
+                      style={{ padding:'8px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, fontFamily:'inherit', background:'#fff' }}>
+                      <option value="">Choisir une ville…</option>
+                      {villesDispo.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                    <select value={nvExclPart} onChange={e => setNvExclPart(e.target.value)} disabled={!nvExclVille}
+                      style={{ padding:'8px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, fontFamily:'inherit', background:'#fff' }}>
+                      <option value="">Choisir le partenaire…</option>
+                      {boutiquesAll.filter(b => b.statut==='actif' && b.ville===nvExclVille).map(b => (
+                        <option key={b.id} value={b.id}>{b.nom}{b.quartier?` (${b.quartier})`:''}</option>
+                      ))}
+                    </select>
+                    <button onClick={ajouterExclVille} disabled={!nvExclVille || !nvExclPart} style={S.btn(!nvExclVille||!nvExclPart?'#ccc':undefined)}>+ Ajouter</button>
+                  </div>
+                </div>
               </div>
             )}
-
-            {/* ===== ONGLET MODIFIER / NOUVEAU ===== */}
             {(ongletDetail === 'edit' || detail._new) && (
               <form onSubmit={e => { e.preventDefault(); detail._new ? (async()=>{
                 const {actif,...rest}=form
