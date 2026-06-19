@@ -54,6 +54,7 @@ export default function EspacePartenaire() {
   }, [])
   const [prixMoyens, setPrixMoyens] = useState<Record<string, { prix_moyen: number; nb_partenaires: number }>>({})
   const [rechercheProd, setRechercheProd] = useState('')
+  const [categorieFiltre, setCategorieFiltre] = useState('')
   const [modeAjout, setModeAjout] = useState(false)
 
   useEffect(() => {
@@ -259,8 +260,12 @@ export default function EspacePartenaire() {
   // IDs des produits déclarés sur au moins une boutique active
   const idsDeclares = new Set(boutiquesActives.flatMap(b => (stocksParBoutique[b.id] || []).map(s => s.produit_id)))
 
+  // Catégories présentes dans le catalogue (pour le filtre)
+  const categoriesDispo = Array.from(new Set(produits.map(p => p.categorie).filter(Boolean))).sort()
+
   const matchRecherche = (p: any) =>
-    !rechercheProd || p.nom.toLowerCase().includes(rechercheProd.toLowerCase()) || (p.categorie || '').toLowerCase().includes(rechercheProd.toLowerCase())
+    (!rechercheProd || p.nom.toLowerCase().includes(rechercheProd.toLowerCase()) || (p.categorie || '').toLowerCase().includes(rechercheProd.toLowerCase()))
+    && (!categorieFiltre || p.categorie === categorieFiltre)
 
   // Mes produits : uniquement ceux que je propose
   const mesProduits = produits.filter(p => idsDeclares.has(p.id) && matchRecherche(p))
@@ -541,7 +546,26 @@ export default function EspacePartenaire() {
 
             <input placeholder="🔍 Chercher un produit ou une catégorie..." value={rechercheProd}
               onChange={e => setRechercheProd(e.target.value)}
-              style={{ ...S.input, marginBottom: 12 }}/>
+              style={{ ...S.input, marginBottom: 10 }}/>
+
+            {/* Filtre par catégorie */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>Catégorie :</span>
+              <select value={categorieFiltre} onChange={e => setCategorieFiltre(e.target.value)}
+                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
+                <option value="">Toutes les catégories</option>
+                {categoriesDispo.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              {(categorieFiltre || rechercheProd) && (
+                <button onClick={() => { setCategorieFiltre(''); setRechercheProd('') }}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #eee', background: '#fff', color: '#888', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  ✕ Effacer
+                </button>
+              )}
+              <span style={{ fontSize: 12, color: '#bbb', marginLeft: 'auto' }}>{produitsAffiches.length} produit{produitsAffiches.length > 1 ? 's' : ''}</span>
+            </div>
 
             {/* Vue : toute la ville (agrégé) ou un magasin précis */}
             {boutiquesVille.length > 1 && (
