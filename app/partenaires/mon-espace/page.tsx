@@ -40,6 +40,8 @@ export default function EspacePartenaire() {
   const [modifStocks, setModifStocks] = useState<Record<string, number>>({})
   const [modifPrix, setModifPrix] = useState<Record<string, number>>({})
   const [modifPromo, setModifPromo] = useState<Record<string, number | null>>({})
+  const [stocksParBoutique, setStocksParBoutique] = useState<Record<string, any[]>>({})
+  const [vueStock, setVueStock] = useState<'ville' | 'magasin'>('ville')
   const [prixMoyens, setPrixMoyens] = useState<Record<string, { prix_moyen: number; nb_partenaires: number }>>({})
   const [rechercheProd, setRechercheProd] = useState('')
   const [modeAjout, setModeAjout] = useState(false)
@@ -84,9 +86,13 @@ export default function EspacePartenaire() {
       const prods = await apiAuth('produits?select=id,nom,categorie,reference,prix,unite&actif=eq.true&order=nom.asc', t!)
       setProduits(prods || [])
 
-      // Charger stocks de la boutique sélectionnée
-      const stks = await apiAuth(`stocks_partenaires?partenaire_id=eq.${m.id}&select=*`, t!)
-      setStocks(stks || [])
+      // Charger les stocks de TOUTES les boutiques du compte (pour la vue par ville)
+      const ids = mag.map((b: any) => b.id)
+      const allStks = ids.length ? await apiAuth(`stocks_partenaires?partenaire_id=in.(${ids.join(',')})&select=*`, t!) : []
+      const parB: Record<string, any[]> = {}
+      ;(allStks || []).forEach((s: any) => { (parB[s.partenaire_id] = parB[s.partenaire_id] || []).push(s) })
+      setStocksParBoutique(parB)
+      setStocks(parB[m.id] || [])
 
       // Charger les commandes (sous-commandes) de la boutique
       const selC = encodeURIComponent('*,commandes(client_nom,client_telephone,client_adresse,client_ville,client_latitude,client_longitude),commande_lignes(*)')
@@ -114,8 +120,9 @@ export default function EspacePartenaire() {
   const choisirBoutique = async (b: any) => {
     setMagasin(b)
     setForm({ nom: b.nom, telephone: b.telephone, adresse: b.adresse, quartier: b.quartier, horaires: b.horaires, description: b.description, latitude: b.latitude ?? '', longitude: b.longitude ?? '' })
-    setModifStocks({}); setModifPrix({}); setModeAjout(false)
+    setModifStocks({}); setModifPrix({}); setModifPromo({}); setModeAjout(false); setVueStock('ville')
     const stks = await apiAuth(`stocks_partenaires?partenaire_id=eq.${b.id}&select=*`, token)
+    setStocksParBoutique(prev => ({ ...prev, [b.id]: stks || [] }))
     setStocks(stks || [])
     chargerCommandes(b.id)
   }
@@ -159,58 +166,85 @@ export default function EspacePartenaire() {
   const sauvegarderStocks = async () => {
     setSaving(true)
     let ok = 0
-    // On enregistre tous les produits modifiés (quantité OU prix)
     const idsModifies = Array.from(new Set([...Object.keys(modifStocks), ...Object.keys(modifPrix), ...Object.keys(modifPromo)]))
+    const cibles = vueStock === 'ville' ? boutiques.filter(b => magasin && b.ville === magasin.ville) : (magasin ? [magasin] : [])
     for (const produitId of idsModifies) {
-      const existant = stocks.find(s => s.produit_id === produitId)
-      const qte = modifStocks[produitId] !== undefined ? modifStocks[produitId] : (existant?.quantite ?? 0)
-      const prix = modifPrix[produitId] !== undefined ? modifPrix[produitId] : (existant?.prix_local ?? null)
-      let promo = modifPromo[produitId] !== undefined ? modifPromo[produitId] : (existant?.prix_local_ancien ?? null)
-      if (!promo || (prix && promo <= prix)) promo = null  // promo valide seulement si > prix actuel
-      if (existant) {
-        await apiAuth(`stocks_partenaires?id=eq.${existant.id}`, token, {
-          method: 'PATCH',
-          body: JSON.stringify({ quantite: qte, prix_local: prix, prix_local_ancien: promo, disponible_immediat: qte > 0 })
-        })
-        setStocks(prev => prev.map(s => s.id === existant.id ? { ...s, quantite: qte, prix_local: prix, prix_local_ancien: promo, disponible_immediat: qte > 0 } : s))
-      } else {
-        const nouveau = await apiAuth('stocks_partenaires', token, {
-          method: 'POST',
-          body: JSON.stringify({ partenaire_id: magasin.id, produit_id: produitId, quantite: qte, prix_local: prix, prix_local_ancien: promo, disponible_immediat: qte > 0 })
-        })
-        if (nouveau) setStocks(prev => [...prev, ...(Array.isArray(nouveau) ? nouveau : [nouveau])])
+      for (const b of cibles) {
+        const rows = stocksParBoutique[b.id] || []
+        const existant = rows.find(s => s.produit_id === produitId)
+        const qte = modifStocks[produitId] !== undefined ? modifStocks[produitId] : (existant?.quantite ?? 0)
+        const prix = modifPrix[produitId] !== undefined ? modifPrix[produitId] : (existant?.prix_local ?? null)
+        let promo = modifPromo[produitId] !== undefined ? modifPromo[produitId] : (existant?.prix_local_ancien ?? null)
+        if (!promo || (prix && promo <= prix)) promo = null
+        if (existant) {
+          await apiAuth(`stocks_partenaires?id=eq.${existant.id}`, token, {
+            method: 'PATCH',
+            body: JSON.stringify({ quantite: qte, prix_local: prix, prix_local_ancien: promo, disponible_immediat: qte > 0 })
+          })
+          existant.quantite = qte; existant.prix_local = prix; existant.prix_local_ancien = promo; existant.disponible_immediat = qte > 0
+        } else {
+          const nouveau = await apiAuth('stocks_partenaires', token, {
+            method: 'POST',
+            body: JSON.stringify({ partenaire_id: b.id, produit_id: produitId, quantite: qte, prix_local: prix, prix_local_ancien: promo, disponible_immediat: qte > 0 })
+          })
+          const row = Array.isArray(nouveau) ? nouveau[0] : nouveau
+          if (row) (stocksParBoutique[b.id] = stocksParBoutique[b.id] || []).push(row)
+        }
       }
       ok++
     }
-    setModifStocks({})
-    setModifPrix({})
-    setModifPromo({})
-    setModeAjout(false)
-    setSucces(`✓ ${ok} produit${ok > 1 ? 's' : ''} mis à jour`)
+    setStocksParBoutique({ ...stocksParBoutique })
+    if (magasin) setStocks(stocksParBoutique[magasin.id] || [])
+    setModifStocks({}); setModifPrix({}); setModifPromo({}); setModeAjout(false)
+    setSucces(`✓ ${ok} produit${ok > 1 ? 's' : ''} mis à jour${vueStock === 'ville' ? ' (toute la ville)' : ''}`)
     setSaving(false)
     setTimeout(() => setSucces(''), 3000)
   }
 
+  // Boutiques de la même ville que la boutique sélectionnée
+  const boutiquesVille = boutiques.filter(b => magasin && b.ville === magasin.ville)
+  const boutiquesActives = vueStock === 'ville' ? boutiquesVille : (magasin ? [magasin] : [])
+  const idsActifs = boutiquesActives.map(b => b.id)
+
+  // Toutes les lignes de stock d'un produit sur les boutiques actives
+  const lignesProduit = (pid: string) =>
+    idsActifs.flatMap(bid => (stocksParBoutique[bid] || []).filter(s => s.produit_id === pid))
+
+  // Quantité totale (somme sur les boutiques actives)
+  const getStockTotal = (pid: string) => lignesProduit(pid).reduce((s, r) => s + (r.quantite || 0), 0)
+
+  // Fourchette de prix sur les boutiques actives
+  const getPrixRange = (pid: string) => {
+    const prix = lignesProduit(pid).map(r => r.prix_local).filter((x: any) => x != null) as number[]
+    if (!prix.length) return null
+    return { min: Math.min(...prix), max: Math.max(...prix) }
+  }
+
+  // Valeurs des champs d'édition
   const getPrix = (produitId: string) => {
     if (modifPrix[produitId] !== undefined) return modifPrix[produitId]
-    return stocks.find(s => s.produit_id === produitId)?.prix_local ?? null
+    if (vueStock === 'magasin') return lignesProduit(produitId)[0]?.prix_local ?? null
+    const r = getPrixRange(produitId)
+    return r && r.min === r.max ? r.min : null // vue ville : pré-rempli seulement si prix uniforme
   }
 
   const getPromo = (produitId: string) => {
     if (modifPromo[produitId] !== undefined) return modifPromo[produitId]
-    return stocks.find(s => s.produit_id === produitId)?.prix_local_ancien ?? null
+    if (vueStock === 'magasin') return lignesProduit(produitId)[0]?.prix_local_ancien ?? null
+    return null
   }
 
   const getStock = (produitId: string) => {
     if (modifStocks[produitId] !== undefined) return modifStocks[produitId]
-    return stocks.find(s => s.produit_id === produitId)?.quantite ?? null
+    if (vueStock === 'magasin') return lignesProduit(produitId)[0]?.quantite ?? null
+    return null // vue ville : champ vide (saisir une valeur l'applique à tous les magasins)
   }
 
-  const nbEnStock = produits.filter(p => (getStock(p.id) || 0) > 0).length
+  const nbEnStock = produits.filter(p => getStockTotal(p.id) > 0).length
   const nbModifs = new Set([...Object.keys(modifStocks), ...Object.keys(modifPrix), ...Object.keys(modifPromo)]).size
 
-  // IDs des produits que le partenaire propose déjà (déclarés dans stocks_partenaires)
-  const idsDeclares = new Set(stocks.map(s => s.produit_id))
+  // IDs des produits déclarés sur au moins une boutique active
+  const idsDeclares = new Set(boutiquesActives.flatMap(b => (stocksParBoutique[b.id] || []).map(s => s.produit_id)))
 
   const matchRecherche = (p: any) =>
     !rechercheProd || p.nom.toLowerCase().includes(rechercheProd.toLowerCase()) || (p.categorie || '').toLowerCase().includes(rechercheProd.toLowerCase())
@@ -484,6 +518,20 @@ export default function EspacePartenaire() {
               onChange={e => setRechercheProd(e.target.value)}
               style={{ ...S.input, marginBottom: 12 }}/>
 
+            {/* Vue : toute la ville (agrégé) ou un magasin précis */}
+            {boutiquesVille.length > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>Vue :</span>
+                <button onClick={() => { setVueStock('ville'); setModifStocks({}); setModifPrix({}); setModifPromo({}) }}
+                  style={S.tab(vueStock === 'ville')}>🏙️ Toute la ville{magasin ? ` (${magasin.ville})` : ''}</button>
+                <button onClick={() => { setVueStock('magasin'); setModifStocks({}); setModifPrix({}); setModifPromo({}) }}
+                  style={S.tab(vueStock === 'magasin')}>🏪 Ce magasin{magasin ? ` (${magasin.quartier})` : ''}</button>
+                {vueStock === 'ville' && (
+                  <span style={{ fontSize: 11, color: '#999' }}>· {boutiquesVille.length} magasins · une saisie s'applique à tous</span>
+                )}
+              </div>
+            )}
+
             {/* Aucun produit proposé encore */}
             {!modeAjout && mesProduits.length === 0 && (
               <div style={{ textAlign: 'center', padding: '36px 16px', color: '#888' }}>
@@ -508,6 +556,8 @@ export default function EspacePartenaire() {
                   {produitsAffiches.slice(0, 100).map(p => {
                     const qte = getStock(p.id)
                     const prix = getPrix(p.id)
+                    const total = getStockTotal(p.id)
+                    const range = getPrixRange(p.id)
                     const moy = prixMoyens[p.id]
                     const enModif = modifStocks[p.id] !== undefined || modifPrix[p.id] !== undefined || modifPromo[p.id] !== undefined
                     return (
@@ -536,6 +586,11 @@ export default function EspacePartenaire() {
                             style={{ width: 100, padding: '5px 10px', border: `1.5px solid ${modifPrix[p.id] !== undefined ? '#C0392B' : '#ddd'}`, borderRadius: 8, fontSize: 13, textAlign: 'right' }}
                           />
                           <span style={{ fontSize: 11, color: '#bbb', marginLeft: 6 }}>FCFA</span>
+                          {vueStock === 'ville' && range && (
+                            <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>
+                              Ville : {range.min.toLocaleString('fr-FR')}{range.min !== range.max ? ` – ${range.max.toLocaleString('fr-FR')}` : ''} FCFA
+                            </div>
+                          )}
                           <div style={{ marginTop: 5 }}>
                             <input
                               type="number" min={0}
@@ -567,7 +622,7 @@ export default function EspacePartenaire() {
                           <input
                             type="number" min={0}
                             value={modifStocks[p.id] !== undefined ? modifStocks[p.id] : qte ?? ''}
-                            placeholder={qte === null ? '0' : String(qte)}
+                            placeholder={vueStock === 'ville' ? 'Qté (tous)' : (qte === null ? '0' : String(qte))}
                             onChange={e => {
                               const v = e.target.value === '' ? undefined : Number(e.target.value)
                               if (v === undefined) {
@@ -579,15 +634,18 @@ export default function EspacePartenaire() {
                             style={{ width: 70, padding: '5px 10px', border: `1.5px solid ${modifStocks[p.id] !== undefined ? '#C0392B' : '#ddd'}`, borderRadius: 8, fontSize: 13, textAlign: 'center' }}
                           />
                           <span style={{ fontSize: 11, color: '#bbb', marginLeft: 6 }}>{p.unite}</span>
+                          {vueStock === 'ville' && (
+                            <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>Total ville : {total} {p.unite}</div>
+                          )}
                         </td>
                         {/* Statut */}
                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f5f5f5' }}>
-                          {qte === null ? (
+                          {!idsDeclares.has(p.id) ? (
                             <span style={{ color: '#bbb', fontSize: 12 }}>—</span>
-                          ) : qte === 0 ? (
+                          ) : total === 0 ? (
                             <span style={{ background: '#fce8e8', color: '#c62828', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>✗ Rupture</span>
                           ) : (
-                            <span style={{ background: '#e8f5e9', color: '#2e7d32', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>✓ {qte} en stock</span>
+                            <span style={{ background: '#e8f5e9', color: '#2e7d32', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>✓ {total} en stock</span>
                           )}
                         </td>
                       </tr>
