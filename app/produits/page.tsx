@@ -95,15 +95,23 @@ function PageProduitsContent() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-6">
-        <aside className={`${filtresOuverts ? 'block' : 'hidden'} md:block w-full md:w-56 shrink-0`}>
+        {filtresOuverts && (
+          <div onClick={() => setFiltresOuverts(false)} className="fixed inset-0 bg-black/30 z-40 md:hidden"/>
+        )}
+        <aside className={`${filtresOuverts ? 'block' : 'hidden'} md:block fixed left-3 right-3 top-20 max-h-[80vh] overflow-y-auto z-50 shadow-2xl rounded-xl md:static md:left-auto md:right-auto md:top-auto md:max-h-none md:overflow-visible md:z-auto md:shadow-none md:rounded-none md:w-56 shrink-0`}>
           <div className="card p-4 space-y-5">
             <div className="flex items-center justify-between">
               <h2 className="font-condensed font-bold text-acier">Filtres</h2>
-              {filtresActifs && (
-                <button onClick={resetFiltres} className="text-xs text-brique hover:underline flex items-center gap-1">
-                  <X size={12}/> Effacer
+              <div className="flex items-center gap-3">
+                {filtresActifs && (
+                  <button onClick={resetFiltres} className="text-xs text-brique hover:underline flex items-center gap-1">
+                    <X size={12}/> Effacer
+                  </button>
+                )}
+                <button onClick={() => setFiltresOuverts(false)} aria-label="Fermer" className="md:hidden text-gray-400 hover:text-acier">
+                  <X size={20}/>
                 </button>
-              )}
+              </div>
             </div>
 
             <div>
@@ -166,6 +174,10 @@ function PageProduitsContent() {
                 ))}
               </div>
             </div>
+
+            <button onClick={() => setFiltresOuverts(false)} className="md:hidden w-full btn-primary mt-2">
+              Voir les résultats{!loading ? ` (${total})` : ''}
+            </button>
           </div>
         </aside>
 
