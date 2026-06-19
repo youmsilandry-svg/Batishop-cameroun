@@ -245,11 +245,6 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                 <p className="text-xs mt-1">Ajoutez chez BatiShop ci-dessus ou essayez une autre ville</p>
               </div>
             )}
-
-            <Link href={`/disponible?q=${encodeURIComponent(produitNom)}&ville=${ville}&delai=${delai}`}
-              className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 border border-gray-200 rounded-lg text-sm text-gray-500 hover:border-brique hover:text-brique transition-colors">
-              <MapPin size={14}/> Voir tous les points de disponibilité →
-            </Link>
           </>
         )}
       </div>
