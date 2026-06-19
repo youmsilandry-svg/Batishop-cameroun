@@ -1,16 +1,24 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
-import { CATEGORIES, fetchCategories } from '../../../lib/supabase'
+import { CATEGORIES, fetchCategories, supabase } from '../../../lib/supabase'
 
 const BASE = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-const PWD  = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123'
+
+// Récupère le jeton de l'admin connecté (sinon clé publique pour les lectures)
+const authToken = async () => {
+  try {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token || KEY
+  } catch { return KEY }
+}
 
 const api = async (path: string, opts: any = {}) => {
+  const token = await authToken()
   const res = await fetch(`${BASE}/rest/v1/${path}`, {
     ...opts,
-    headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...(opts.headers||{}) }
+    headers: { 'apikey': KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...(opts.headers||{}) }
   })
   if (!res.ok) return null
   return res.json().catch(() => null)
@@ -49,6 +57,8 @@ export default function AdminProduits() {
   const [form, setForm]           = useState<any>({})
   const [saving, setSaving]       = useState(false)
   const [succes, setSucces]       = useState('')
+  const [email, setEmail]         = useState('')
+  const [authErr, setAuthErr]     = useState('')
   const [cats, setCats]           = useState<any[]>([TOUTES, ...CATEGORIES])
   const [boutiquesAll, setBoutiquesAll] = useState<any[]>([])
   const [exclusivitesVille, setExclusivitesVille] = useState<any[]>([])
@@ -64,8 +74,16 @@ export default function AdminProduits() {
   const PER = 25
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('batishop_admin_auth') === '1') setAuth(true)
+    supabase.auth.getSession().then(({ data }) => { if (data.session) setAuth(true) })
   }, [])
+
+  const connexion = async () => {
+    setAuthErr('')
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pwd })
+    if (error || !data.session) { setAuthErr('Email ou mot de passe incorrect.'); return }
+    setAuth(true)
+  }
+  const deconnexion = async () => { await supabase.auth.signOut(); setAuth(false) }
 
   const charger = useCallback(async (p = 1) => {
     setLoading(true); setPage(p)
@@ -172,15 +190,16 @@ export default function AdminProduits() {
 
   if (!auth) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f2ede8', fontFamily:'system-ui,sans-serif' }}>
-      <div style={{ background:'#fff', borderRadius:14, padding:32, width:300, boxShadow:'0 4px 24px rgba(0,0,0,.1)' }}>
-        <div style={{ fontWeight:800, fontSize:22, marginBottom:16 }}>Bati<span style={{color:'#C0392B'}}>Shop</span> Admin</div>
-        <input type="password" placeholder="Mot de passe" value={pwd} onChange={e => setPwd(e.target.value)}
-          onKeyDown={e => { if (e.key==='Enter') { if(pwd===PWD){setAuth(true);localStorage.setItem('batishop_admin_auth','1')}else alert('Incorrect') }}}
+      <div style={{ background:'#fff', borderRadius:14, padding:32, width:320, boxShadow:'0 4px 24px rgba(0,0,0,.1)' }}>
+        <div style={{ fontWeight:800, fontSize:22, marginBottom:4 }}>Bati<span style={{color:'#C0392B'}}>Shop</span> Admin</div>
+        <div style={{ fontSize:13, color:'#888', marginBottom:16 }}>Connexion administrateur</div>
+        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)}
           style={{ ...S.input, width:'100%', marginBottom:10 }}/>
-        <button style={{ ...S.btn(), width:'100%', padding:11 }}
-          onClick={() => { if(pwd===PWD){setAuth(true);localStorage.setItem('batishop_admin_auth','1')}else alert('Incorrect') }}>
-          Connexion →
-        </button>
+        <input type="password" placeholder="Mot de passe" value={pwd} onChange={e => setPwd(e.target.value)}
+          onKeyDown={e => { if (e.key==='Enter') connexion() }}
+          style={{ ...S.input, width:'100%', marginBottom:10 }}/>
+        {authErr && <div style={{ background:'#fce8e8', color:'#c62828', padding:'8px 12px', borderRadius:8, fontSize:12, marginBottom:10 }}>⚠️ {authErr}</div>}
+        <button style={{ ...S.btn(), width:'100%', padding:11 }} onClick={connexion}>Connexion →</button>
       </div>
     </div>
   )
@@ -198,7 +217,8 @@ export default function AdminProduits() {
         <a href="/admin/clients"      style={S.navbtn(false) as any}>👥 Clients</a>
         <a href="/admin/partenaires"  style={S.navbtn(false) as any}>🏪 Partenaires</a>
         <a href="/admin/stocks-admin" style={S.navbtn(false) as any}>📊 Stocks</a>
-        <div style={{ marginTop:'auto', paddingTop:12, borderTop:'1px solid rgba(255,255,255,.1)' }}>
+        <div style={{ marginTop:'auto', paddingTop:12, borderTop:'1px solid rgba(255,255,255,.1)', display:'flex', flexDirection:'column', gap:8 }}>
+          <button onClick={deconnexion} style={{ background:'none', border:'none', color:'rgba(255,255,255,.5)', fontSize:12, textAlign:'left', cursor:'pointer', fontFamily:'inherit', padding:0 }}>⎋ Déconnexion</button>
           <a href="/" style={{ color:'rgba(255,255,255,.35)', fontSize:12, textDecoration:'none' }}>← Voir le site</a>
         </div>
       </aside>
