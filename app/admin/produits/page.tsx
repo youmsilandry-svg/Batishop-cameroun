@@ -37,6 +37,7 @@ export default function AdminProduits() {
   const [page, setPage]         = useState(1)
   const [q, setQ]               = useState('')
   const [cat, setCat]           = useState('')
+  const [sousCat, setSousCat]   = useState('')
   const [stockF, setStockF]     = useState('')
   const [vue, setVue]           = useState<'liste'|'grille'>('liste')
 
@@ -70,6 +71,7 @@ export default function AdminProduits() {
     setLoading(true); setPage(p)
     let url = `produits?select=*&order=nom.asc&offset=${(p-1)*PER}&limit=${PER}`
     if (cat)   url += `&categorie=eq.${cat}`
+    if (sousCat) url += `&sous_categorie=eq.${encodeURIComponent(sousCat)}`
     if (q)     url += `&nom=ilike.*${encodeURIComponent(q)}*`
     if (stockF === 'rupture') url += `&stock=eq.0`
     if (stockF === 'faible')  url += `&stock=gt.0&stock=lte.10`
@@ -82,9 +84,9 @@ export default function AdminProduits() {
     const data = await res.json().catch(() => [])
     setProduits(Array.isArray(data) ? data : [])
     setLoading(false)
-  }, [cat, q, stockF])
+  }, [cat, sousCat, q, stockF])
 
-  useEffect(() => { if (auth) charger(1) }, [auth, cat, stockF])
+  useEffect(() => { if (auth) charger(1) }, [auth, cat, sousCat, stockF])
 
   const ouvrirDetail = async (p: any) => {
     setDetail(p); setForm({ ...p }); setOngletDetail('infos'); setPartenairesStock([]); setExclusivitesVille([])
@@ -92,15 +94,28 @@ export default function AdminProduits() {
     const stocks = await api(`stocks_partenaires?produit_id=eq.${p.id}&select=id,partenaire_id,quantite,disponible_immediat,mis_en_avant,partenaires_magasins(nom,ville,quartier,telephone,statut)&order=quantite.desc`)
     setPartenairesStock(Array.isArray(stocks) ? stocks.filter((s:any) => s.partenaires_magasins?.statut === 'actif') : [])
     const excl = await api(`exclusivites_ville?produit_id=eq.${p.id}&select=id,ville,partenaire_id,actif&order=ville.asc`)
-    setExclusivitesVille(Array.isArray(excl) ? excl : [])
+    const exclArr = Array.isArray(excl) ? excl : []
+    setExclusivitesVille(exclArr)
+    // Initialiser le contrôle d'exclusivité du formulaire
+    let scope = 'toutes', ville = '', partner = p.partenaire_exclusif || ''
+    if (!partner && exclArr.length) { scope = 'ville'; partner = exclArr[0].partenaire_id; ville = exclArr[0].ville }
+    setForm((f: any) => ({ ...f, partenaire_exclusif: partner, _exclScope: scope, _exclVille: ville }))
     setLoadingDetail(false)
   }
 
   const sauvegarder = async () => {
     setSaving(true)
-    const { id, created_at, search_vector, ...rest } = form
-    if (rest.partenaire_exclusif === '' || rest.partenaire_exclusif === undefined) rest.partenaire_exclusif = null
+    const { id, created_at, search_vector, _exclScope, _exclVille, ...rest } = form
+    const partner = rest.partenaire_exclusif || ''
+    const scope = _exclScope || 'toutes'
+    rest.partenaire_exclusif = (partner && scope === 'toutes') ? partner : null
+    Object.keys(rest).forEach(k => { if (k.startsWith('_')) delete (rest as any)[k] })
     await api(`produits?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(rest) })
+    // Exclusivité par ville : on remplace par la sélection actuelle
+    await api(`exclusivites_ville?produit_id=eq.${id}`, { method: 'DELETE' })
+    if (partner && scope === 'ville' && _exclVille) {
+      await api('exclusivites_ville', { method: 'POST', body: JSON.stringify({ produit_id: id, ville: _exclVille, partenaire_id: partner, actif: true }) })
+    }
     setProduits(prev => prev.map(x => x.id === id ? { ...x, ...rest } : x))
     setDetail((d: any) => ({ ...d, ...rest }))
     setSaving(false); setOngletDetail('infos')
@@ -222,12 +237,26 @@ export default function AdminProduits() {
           </div>
           <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
             {cats.map(c => (
-              <button key={c.id} onClick={() => setCat(c.id)}
+              <button key={c.id} onClick={() => { setCat(c.id); setSousCat('') }}
                 style={{ padding:'4px 10px', borderRadius:20, border:`2px solid ${cat===c.id?'#1A2332':'#e0e0e0'}`, background:cat===c.id?'#1A2332':'#fff', color:cat===c.id?'#fff':'#555', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
                 {c.emoji} {c.label}
               </button>
             ))}
           </div>
+          {cat && (cats.find(c=>c.id===cat)?.sous || []).length > 0 && (
+            <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop:6, paddingLeft:4, borderLeft:'2px solid #eee' }}>
+              <button onClick={() => setSousCat('')}
+                style={{ padding:'3px 9px', borderRadius:20, border:`1.5px solid ${!sousCat?'#C0392B':'#e0e0e0'}`, background:!sousCat?'#C0392B':'#fff', color:!sousCat?'#fff':'#777', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
+                Tous
+              </button>
+              {(cats.find(c=>c.id===cat)?.sous || []).map((s:string) => (
+                <button key={s} onClick={() => setSousCat(s)}
+                  style={{ padding:'3px 9px', borderRadius:20, border:`1.5px solid ${sousCat===s?'#C0392B':'#e0e0e0'}`, background:sousCat===s?'#C0392B':'#fff', color:sousCat===s?'#fff':'#777', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* TABLE */}
@@ -355,11 +384,15 @@ export default function AdminProduits() {
                     <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                       <span style={{ background:detail.actif?'#e8f5e9':'#fce8e8', color:detail.actif?'#2e7d32':'#c62828', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>{detail.actif?'✓ Visible':'✗ Masqué'}</span>
                       {detail.badge && <span style={{ background:'#fff0ee', color:'#C0392B', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>{detail.badge.toUpperCase()}</span>}
-                      {detail.partenaire_exclusif && (
+                      {detail.partenaire_exclusif ? (
                         <span style={{ background:'#1A2332', color:'#fff', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>
-                          🔒 {detail.produit_partenaire ? 'Produit propre' : 'Exclusivité'} — {partenairesUniq.find(en=>en.id===detail.partenaire_exclusif)?.nom || '…'}
+                          🔒 {detail.produit_partenaire ? 'Produit propre' : 'Exclusivité'} (toutes villes) — {partenairesUniq.find(en=>en.id===detail.partenaire_exclusif)?.nom || '…'}
                         </span>
-                      )}
+                      ) : exclusivitesVille.length > 0 ? (
+                        <span style={{ background:'#1A2332', color:'#fff', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>
+                          🔒 Exclusivité ({exclusivitesVille.map((e:any)=>e.ville).join(', ')}) — {partenairesUniq.find(en=>en.id===exclusivitesVille[0].partenaire_id)?.nom || '…'}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -472,51 +505,14 @@ export default function AdminProduits() {
                     </table>
                   )}
                 </div>
-
-                {/* Exclusivité par ville */}
-                <div style={{ background:'#fff', borderRadius:12, border:'1px solid #e8e8e8', overflow:'hidden', marginTop:16 }}>
-                  <div style={{ padding:'12px 16px', borderBottom:'1px solid #f0f0f0', fontWeight:700, fontSize:14, color:'#1A2332' }}>
-                    🏙️ Exclusivité par ville
-                    <span style={{ fontWeight:400, fontSize:12, color:'#999', marginLeft:8 }}>un seul partenaire vend ce produit dans la ville choisie</span>
-                  </div>
-
-                  {exclusivitesVille.length > 0 && (
-                    <div style={{ padding:'8px 16px' }}>
-                      {exclusivitesVille.map(e => (
-                        <div key={e.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f5f5f5' }}>
-                          <div style={{ fontSize:13 }}>
-                            <span style={{ fontWeight:700, color:'#1A2332' }}>📍 {e.ville}</span>
-                            <span style={{ color:'#888' }}> → {boutiquesAll.find(b=>b.id===e.partenaire_id)?.nom || 'Partenaire'}</span>
-                          </div>
-                          <button onClick={() => supprimerExclVille(e.id)}
-                            style={{ ...S.btn('#fce8e8','#c62828'), padding:'4px 10px' }}>🗑 Retirer</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div style={{ padding:'12px 16px', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', background:'#fafafa' }}>
-                    <select value={nvExclVille} onChange={e => { setNvExclVille(e.target.value); setNvExclPart('') }}
-                      style={{ padding:'8px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, fontFamily:'inherit', background:'#fff' }}>
-                      <option value="">Choisir une ville…</option>
-                      {villesDispo.map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                    <select value={nvExclPart} onChange={e => setNvExclPart(e.target.value)} disabled={!nvExclVille}
-                      style={{ padding:'8px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, fontFamily:'inherit', background:'#fff' }}>
-                      <option value="">Choisir le partenaire…</option>
-                      {boutiquesAll.filter(b => b.statut==='actif' && b.ville===nvExclVille).map(b => (
-                        <option key={b.id} value={b.id}>{b.nom}{b.quartier?` (${b.quartier})`:''}</option>
-                      ))}
-                    </select>
-                    <button onClick={ajouterExclVille} disabled={!nvExclVille || !nvExclPart} style={S.btn(!nvExclVille||!nvExclPart?'#ccc':undefined)}>+ Ajouter</button>
-                  </div>
-                </div>
               </div>
             )}
             {(ongletDetail === 'edit' || detail._new) && (
               <form onSubmit={e => { e.preventDefault(); detail._new ? (async()=>{
-                const {actif,...rest}=form
-                if (rest.partenaire_exclusif === '' || rest.partenaire_exclusif === undefined) rest.partenaire_exclusif = null
+                const {actif, _exclScope, _exclVille, ...rest}=form
+                const partner = rest.partenaire_exclusif || ''
+                rest.partenaire_exclusif = (partner && (_exclScope||'toutes') === 'toutes') ? partner : null
+                Object.keys(rest).forEach(k => { if (k.startsWith('_')) delete (rest as any)[k] })
                 await api('produits', { method:'POST', body:JSON.stringify({...rest, actif:true}) })
                 setDetail(null); charger(page)
                 setSucces('✓ Produit créé')
@@ -569,13 +565,36 @@ export default function AdminProduits() {
                         </select>
                       ) : f.type==='select-exclusif' ? (
                         <div>
-                          <select value={v||''} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}>
+                          <select value={form.partenaire_exclusif||''} onChange={e=>setForm((p:any)=>({...p,partenaire_exclusif:e.target.value}))} style={{ ...S.input, width:'100%' }}>
                             <option value="">Aucune — vendu par tous les partenaires</option>
                             {partenairesUniq.map(en=>(
-                              <option key={en.id} value={en.id}>{en.nom}{en.ville?` — ${en.ville}`:''}</option>
+                              <option key={en.id} value={en.id}>{en.nom}</option>
                             ))}
                           </select>
-                          {v && <div style={{ fontSize:11, color:'#C0392B', marginTop:6 }}>🔒 Réservé à ce partenaire : tous ses magasins peuvent le vendre, aucun autre partenaire.</div>}
+                          {form.partenaire_exclusif && (
+                            <div style={{ marginTop:10, padding:12, background:'#fafafa', borderRadius:8 }}>
+                              <div style={{ fontWeight:600, marginBottom:8, color:'#555', fontSize:12 }}>Portée de l'exclusivité :</div>
+                              <label style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8, cursor:'pointer', fontSize:13, color:'#444' }}>
+                                <input type="radio" name="exclScope" checked={(form._exclScope||'toutes')==='toutes'} onChange={()=>setForm((p:any)=>({...p,_exclScope:'toutes'}))}/>
+                                🌍 Toutes les villes
+                              </label>
+                              <label style={{ display:'flex', gap:8, alignItems:'center', cursor:'pointer', fontSize:13, color:'#444' }}>
+                                <input type="radio" name="exclScope" checked={form._exclScope==='ville'} onChange={()=>setForm((p:any)=>({...p,_exclScope:'ville'}))}/>
+                                🏙️ Une ville précise
+                              </label>
+                              {form._exclScope==='ville' && (
+                                <select value={form._exclVille||''} onChange={e=>setForm((p:any)=>({...p,_exclVille:e.target.value}))} style={{ ...S.input, width:'100%', marginTop:8 }}>
+                                  <option value="">Choisir la ville…</option>
+                                  {villesDispo.map(v=><option key={v} value={v}>{v}</option>)}
+                                </select>
+                              )}
+                              <div style={{ fontSize:11, color:'#888', marginTop:8 }}>
+                                {form._exclScope==='ville'
+                                  ? "Dans cette ville, seul ce partenaire vend le produit. Les partenaires des autres villes peuvent le vendre."
+                                  : "Ce partenaire est le seul à vendre ce produit, dans toutes les villes."}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : f.type==='checkbox' ? (
                         <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'#555' }}>

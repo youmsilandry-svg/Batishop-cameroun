@@ -60,7 +60,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
       list = list.filter((s: any) => s.partenaires_magasins?.entreprise_id === prodExcl.partenaire_exclusif)
     } else {
       const e = exclVille.find((x: any) => x.ville === ville)
-      if (e) list = list.filter((s: any) => s.partenaires_magasins?.id === e.partenaire_id)
+      if (e) list = list.filter((s: any) => s.partenaires_magasins?.entreprise_id === e.partenaire_id)
     }
     // Mise en avant : partenaires "officiels" affichés en premier
     list = [...list].sort((a: any, b: any) => (b.mis_en_avant ? 1 : 0) - (a.mis_en_avant ? 1 : 0))
