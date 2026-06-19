@@ -1,17 +1,15 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ShoppingCart, ArrowLeft, Truck, Shield, RotateCcw, Phone, Star, ChevronDown, ChevronUp, Check, Minus, Plus } from 'lucide-react'
+import { ArrowLeft, Truck, Shield, RotateCcw, Phone, Star, Check, MapPin } from 'lucide-react'
 import { supabase, formatPrix, CATEGORIES } from '../../../lib/supabase'
 import { OuTrouver } from '../../../components/produits/OuTrouver'
+import { SITE } from '../../../lib/config'
 
 export default function PageDetailProduit() {
   const { id } = useParams()
   const router = useRouter()
   const [produit, setProduit] = useState(null)
-  const [quantite, setQuantite] = useState(1)
-  const [inputQuantite, setInputQuantite] = useState('1')
-  const [ajoute, setAjoute] = useState(false)
   const [loading, setLoading] = useState(true)
   const [stockPartenaires, setStockPartenaires] = useState(0)
   const [onglet, setOnglet] = useState('description')
@@ -26,63 +24,6 @@ export default function PageDetailProduit() {
     }
     if (id) charger()
   }, [id])
-
-  // Sync quantite -> inputQuantite quand on clique +/-
-  useEffect(() => {
-    setInputQuantite(String(quantite))
-  }, [quantite])
-
-  const diminuer = () => {
-    const nouvelle = Math.max(1, quantite - 1)
-    setQuantite(nouvelle)
-  }
-
-  const augmenter = () => {
-    const max = produit?.stock || 999
-    const nouvelle = Math.min(max, quantite + 1)
-    setQuantite(nouvelle)
-  }
-
-  const handleInputChange = (e) => {
-    // Laisser l'utilisateur taper librement
-    setInputQuantite(e.target.value)
-  }
-
-  const handleInputBlur = () => {
-    // Valider quand l'utilisateur quitte le champ
-    const val = parseInt(inputQuantite)
-    const max = produit?.stock || 999
-    if (!isNaN(val) && val >= 1 && val <= max) {
-      setQuantite(val)
-    } else if (!isNaN(val) && val < 1) {
-      setQuantite(1)
-      setInputQuantite('1')
-    } else if (!isNaN(val) && val > max) {
-      setQuantite(max)
-      setInputQuantite(String(max))
-    } else {
-      // Valeur invalide → revenir à l'ancienne
-      setInputQuantite(String(quantite))
-    }
-  }
-
-  const handleInputKeyDown = (e) => {
-    if (e.key === 'Enter') e.target.blur()
-  }
-
-  const ajouterAuPanier = () => {
-    if (!produit) return
-    const data = localStorage.getItem('batishop_panier')
-    const items = data ? JSON.parse(data) : []
-    const existe = items.find((a) => a.produit.id === produit.id)
-    const nouveau = existe
-      ? items.map((a) => a.produit.id === produit.id ? { ...a, quantite: a.quantite + quantite } : a)
-      : [...items, { produit, quantite }]
-    localStorage.setItem('batishop_panier', JSON.stringify(nouveau))
-    window.dispatchEvent(new Event('panier-updated'))
-    setAjoute(true)
-    setTimeout(() => setAjoute(false), 2000)
-  }
 
   const cat = CATEGORIES.find((c) => c.id === produit?.categorie)
   const reduction = produit?.prix_ancien ? Math.round((1 - produit.prix / produit.prix_ancien) * 100) : null
@@ -199,70 +140,15 @@ export default function PageDetailProduit() {
             </span>
           </div>
 
-          {/* ===== SÉLECTEUR QUANTITÉ ===== */}
-          <div className="mb-4">
-            <label className="text-xs font-semibold text-gray-500 block mb-2">Quantité</label>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center border-2 border-gray-200 rounded-lg overflow-hidden focus-within:border-brique transition-colors">
-                {/* Bouton Moins */}
-                <button
-                  type="button"
-                  onClick={diminuer}
-                  disabled={quantite <= 1}
-                  className="px-4 py-3 hover:bg-beton text-acier font-bold text-xl select-none disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                  <Minus size={16}/>
-                </button>
-
-                {/* Input saisie manuelle */}
-                <input
-                  type="number"
-                  value={inputQuantite}
-                  onChange={handleInputChange}
-                  onBlur={handleInputBlur}
-                  onKeyDown={handleInputKeyDown}
-                  min={1}
-                  max={produit.stock}
-                  className="w-16 text-center py-3 font-bold text-lg border-x-2 border-gray-200 focus:outline-none bg-white"
-                  style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
-                />
-
-                {/* Bouton Plus */}
-                <button
-                  type="button"
-                  onClick={augmenter}
-                  disabled={quantite >= produit.stock}
-                  className="px-4 py-3 hover:bg-beton text-acier font-bold text-xl select-none disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                  <Plus size={16}/>
-                </button>
-              </div>
-
-              <span className="text-sm text-gray-400">
-                {produit.unite}{quantite > 1 ? 's' : ''}
-                {produit.stock <= 10 && produit.stock > 0 && (
-                  <span className="text-amber-600 ml-1">(max {produit.stock})</span>
-                )}
-              </span>
-            </div>
-          </div>
-
-          {/* Total estimé */}
-          {quantite > 1 && (
-            <div className="text-sm text-gray-600 mb-4 p-3 bg-beton rounded-lg flex items-center justify-between">
-              <span>Total estimé ({quantite} {produit.unite}s)</span>
-              <strong className="text-brique text-base">{formatPrix(produit.prix * quantite)}</strong>
-            </div>
-          )}
-
-          {/* Bouton Panier */}
+          {/* Bouton Choisir où acheter — scroll vers la section "Où trouver" */}
           <button
-            onClick={ajouterAuPanier}
-            disabled={produit.stock === 0}
+            onClick={() => document.getElementById('ou-trouver')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            disabled={(produit.stock + stockPartenaires) === 0}
             className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-lg font-bold text-base transition-colors ${
-              ajoute ? 'bg-green-600 text-white' :
-              produit.stock === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' :
+              (produit.stock + stockPartenaires) === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' :
               'bg-brique text-white hover:bg-brique-dark'}`}>
-            <ShoppingCart size={20}/>
-            {ajoute ? '✓ Ajouté au panier !' : produit.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}
+            <MapPin size={20}/>
+            {(produit.stock + stockPartenaires) === 0 ? 'Rupture de stock' : 'Choisir où acheter'}
           </button>
 
           {/* Contact */}
@@ -271,7 +157,7 @@ export default function PageDetailProduit() {
             <div>
               <p className="text-xs font-bold text-acier">Besoin de conseils ?</p>
               <p className="text-xs text-gray-500">
-                Appelez-nous : <a href="tel:+237600000000" className="text-brique font-medium">+237 6XX XXX XXX</a>
+                Appelez-nous : <a href={`tel:${SITE.telLien}`} className="text-brique font-medium">{SITE.tel}</a>
               </p>
             </div>
           </div>
@@ -425,7 +311,7 @@ export default function PageDetailProduit() {
         </div>
       </div>
 
-      <div className="mb-6">
+      <div id="ou-trouver" className="mb-6 scroll-mt-24">
         <OuTrouver produitId={produit.id} produitNom={produit.nom} />
       </div>
       <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-500 hover:text-brique">

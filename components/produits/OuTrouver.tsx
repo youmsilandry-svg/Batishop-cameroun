@@ -24,13 +24,13 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
   const [qtes, setQtes] = useState<Record<string, number>>({})
   const [ajoute, setAjoute] = useState<Record<string, boolean>>({})
 
-  const getQte = (k: string) => qtes[k] || 1
-  const setQte = (k: string, v: number) => setQtes(p => ({ ...p, [k]: Math.max(1, v) }))
+  const getQte = (k: string) => (qtes[k] === undefined ? 1 : qtes[k])
+  const setQte = (k: string, v: number, max: number) => setQtes(p => ({ ...p, [k]: Math.min(max, Math.max(0, v)) }))
 
   // Produit (prix, unité…) + exclusivités
   useEffect(() => {
     supabase.from('produits')
-      .select('id, nom, prix, unite, image_url, reference, categorie, partenaire_exclusif, produit_partenaire')
+      .select('id, nom, prix, unite, image_url, reference, categorie, stock, partenaire_exclusif, produit_partenaire')
       .eq('id', produitId).maybeSingle()
       .then(({ data }) => setProduit(data))
     supabase.from('exclusivites_ville').select('ville, partenaire_id').eq('produit_id', produitId).eq('actif', true)
@@ -87,12 +87,25 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
     feedback(m.id)
   }
 
-  // Petit sélecteur de quantité réutilisable
-  const Stepper = ({ k }: { k: string }) => (
+  // Sélecteur de quantité éditable (0 → max stock)
+  const Stepper = ({ k, max }: { k: string; max: number }) => (
     <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
-      <button onClick={() => setQte(k, getQte(k) - 1)} className="px-2 py-1 hover:bg-beton text-acier"><Minus size={12}/></button>
-      <span className="px-2 text-xs font-semibold min-w-[24px] text-center">{getQte(k)}</span>
-      <button onClick={() => setQte(k, getQte(k) + 1)} className="px-2 py-1 hover:bg-beton text-acier"><Plus size={12}/></button>
+      <button onClick={() => setQte(k, getQte(k) - 1, max)} disabled={getQte(k) <= 0}
+        className="px-2 py-1 hover:bg-beton text-acier disabled:opacity-40 disabled:cursor-not-allowed"><Minus size={12}/></button>
+      <input
+        type="number"
+        value={getQte(k)}
+        min={0}
+        max={max}
+        onChange={e => {
+          const val = parseInt(e.target.value)
+          setQte(k, isNaN(val) ? 0 : val, max)
+        }}
+        className="w-12 text-center text-xs font-semibold border-x border-gray-200 py-1 focus:outline-none bg-white"
+        style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
+      />
+      <button onClick={() => setQte(k, getQte(k) + 1, max)} disabled={getQte(k) >= max}
+        className="px-2 py-1 hover:bg-beton text-acier disabled:opacity-40 disabled:cursor-not-allowed"><Plus size={12}/></button>
     </div>
   )
 
@@ -142,11 +155,11 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                   )}
                 </div>
                 <p className="text-xs text-gray-500">Commande en ligne · Livraison à {ville} · Prix garanti</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Stepper k="batishop"/>
-                  <button onClick={ajouterBatishop} disabled={!produit}
-                    className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold ${ajoute['batishop'] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
-                    {ajoute['batishop'] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter au panier</>}
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <Stepper k="batishop" max={produit?.stock ?? 999}/>
+                  <button onClick={ajouterBatishop} disabled={!produit || getQte('batishop') < 1}
+                    className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${ajoute['batishop'] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
+                    {ajoute['batishop'] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter — {formatPrix(produit?.prix || 0)}</>}
                   </button>
                 </div>
               </div>
@@ -199,18 +212,20 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                         {mag.horaires && (
                           <p className="text-xs text-gray-400 flex items-center gap-1"><Clock size={10}/> {mag.horaires}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <Stepper k={mag.id}/>
-                          <button onClick={() => ajouterPartenaire(s)} disabled={!produit}
-                            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold ${ajoute[mag.id] ? 'bg-green-600 text-white' : 'bg-acier text-white hover:bg-brique'}`}>
-                            {ajoute[mag.id] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter au panier</>}
+                        <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Stepper k={mag.id} max={s.quantite || 0}/>
+                            {mag.latitude && (
+                              <a href={`https://maps.google.com/?q=${mag.latitude},${mag.longitude}`} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1 border border-gray-200 text-gray-500 text-xs px-2.5 py-1.5 rounded-lg hover:text-brique hover:border-brique">
+                                <Navigation size={11}/> GPS
+                              </a>
+                            )}
+                          </div>
+                          <button onClick={() => ajouterPartenaire(s)} disabled={!produit || getQte(mag.id) < 1}
+                            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${ajoute[mag.id] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
+                            {ajoute[mag.id] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter — {formatPrix(s.prix_local || produit?.prix || 0)}</>}
                           </button>
-                          {mag.latitude && (
-                            <a href={`https://maps.google.com/?q=${mag.latitude},${mag.longitude}`} target="_blank" rel="noopener noreferrer"
-                              className="flex items-center gap-1 border border-gray-200 text-gray-500 text-xs px-2.5 py-1.5 rounded-lg hover:text-brique hover:border-brique">
-                              <Navigation size={11}/> GPS
-                            </a>
-                          )}
                         </div>
                       </div>
                     </div>
