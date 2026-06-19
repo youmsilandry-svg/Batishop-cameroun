@@ -39,6 +39,7 @@ export default function AdminPartenaires() {
   const [loading, setLoading] = useState(false)
   const [filtre, setFiltre] = useState<'en_attente'|'actif'|'tous'>('en_attente')
   const [detail, setDetail] = useState<any>(null)
+  const [tauxInput, setTauxInput] = useState('')
   const [tab, setTab] = useState<'boutiques'|'stock'|'commandes'>('boutiques')
   const [boutiques, setBoutiques] = useState<any[]>([])
   const [stock, setStock] = useState<any[]>([])
@@ -65,6 +66,7 @@ export default function AdminPartenaires() {
 
   const ouvrir = async (e:any) => {
     setDetail(e); setUid(e.user_id||''); setTab('boutiques'); setNouvelle(null); setBoutiques([]); setStock([])
+    setTauxInput(e.commission_taux != null ? String(e.commission_taux) : '')
     const b = await api(`partenaires_magasins?entreprise_id=eq.${e.id}&select=*&order=ville.asc`)
     const list = Array.isArray(b)?b:[]
     setBoutiques(list)
@@ -133,6 +135,19 @@ export default function AdminPartenaires() {
     setBoutiques(prev => prev.map(x=>x.id===b.id?{...x,...body}:x))
     setCoords(c => { const n={...c}; delete n[b.id]; return n })
     setMsg('✓ Position enregistrée'); setTimeout(()=>setMsg(''), 2500)
+  }
+
+  const enregistrerTaux = async () => {
+    if (!detail) return
+    const v = tauxInput.trim().replace(',', '.')
+    const val = v === '' ? null : parseFloat(v)
+    if (v !== '' && (isNaN(val as number) || (val as number) < 0 || (val as number) > 100)) {
+      alert('Taux invalide : entre 0 et 100 (ou laisse vide pour utiliser le taux global).'); return
+    }
+    await api(`entreprises?id=eq.${detail.id}`, { method:'PATCH', body: JSON.stringify({ commission_taux: val }) })
+    setEnts(prev => prev.map(x => x.id===detail.id ? { ...x, commission_taux: val } : x))
+    setDetail((d:any) => d ? { ...d, commission_taux: val } : d)
+    alert('Taux de commission enregistré ✓')
   }
 
   const lierCompte = async (e:any) => {
@@ -268,6 +283,17 @@ export default function AdminPartenaires() {
               {detail.telephone && <a href={`tel:${detail.telephone}`} style={S.btn('#fff','#333')}>📞 Appeler</a>}
               {detail.telephone && <a href={waLink(detail.telephone)} target="_blank" rel="noopener" style={S.btn('#25D366','#fff')}>WhatsApp</a>}
               {detail.email && <a href={`mailto:${detail.email}`} style={S.btn('#fff','#333')}>✉️ Email</a>}
+            </div>
+
+            {/* Taux de commission BatiShop */}
+            <div style={{display:'flex',alignItems:'center',gap:8,marginTop:12,paddingTop:12,borderTop:'1px solid #f0f0f0',flexWrap:'wrap'}}>
+              <span style={{fontSize:11,fontWeight:700,color:'#888',textTransform:'uppercase'}}>Commission BatiShop</span>
+              <input type="number" step="0.1" min="0" max="100" value={tauxInput}
+                onChange={e=>setTauxInput(e.target.value)} placeholder="global"
+                style={{...S.inp,width:90}}/>
+              <span style={{fontSize:13,color:'#555'}}>%</span>
+              <button onClick={enregistrerTaux} style={S.btn('#C0392B')}>Enregistrer</button>
+              <span style={{fontSize:11,color:'#aaa'}}>(vide = taux global)</span>
             </div>
           </div>
 
