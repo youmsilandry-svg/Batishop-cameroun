@@ -89,7 +89,7 @@ function PageProduitsContent() {
         </div>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col md:flex-row gap-6">
         <aside className={`${filtresOuverts ? 'block' : 'hidden'} md:block w-full md:w-56 shrink-0`}>
           <div className="card p-4 space-y-5">
             <div className="flex items-center justify-between">

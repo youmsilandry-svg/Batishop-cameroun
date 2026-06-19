@@ -292,7 +292,7 @@ export default function EspacePartenaire() {
 
   const S: any = {
     page: { minHeight: '100vh', background: '#f5f5f3', fontFamily: 'system-ui,sans-serif', fontSize: 14 },
-    header: { background: '#1A2332', color: '#fff', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    header: { background: '#1A2332', color: '#fff', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 },
     main: { maxWidth: 1000, margin: '0 auto', padding: '24px 16px' },
     card: { background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', padding: 20, marginBottom: 16 },
     btn: (bg = '#C0392B', c = '#fff') => ({ padding: '8px 16px', background: bg, color: c, border: bg === '#fff' ? '1px solid #ddd' : 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }),
@@ -325,7 +325,7 @@ export default function EspacePartenaire() {
     <div style={S.page}>
       {/* HEADER */}
       <div style={S.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minWidth: 0 }}>
           <div style={{ width: 38, height: 38, background: '#C0392B', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🏪</div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 15 }}>{entreprise?.nom || magasin?.nom}</div>
@@ -335,7 +335,7 @@ export default function EspacePartenaire() {
             <select
               value={magasin?.id || ''}
               onChange={e => { const b = boutiques.find(x => x.id === e.target.value); if (b) choisirBoutique(b) }}
-              style={{ marginLeft: 8, padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.1)', color: '#fff', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.1)', color: '#fff', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', maxWidth: '100%' }}>
               {boutiques.map(b => (
                 <option key={b.id} value={b.id} style={{ color: '#222' }}>
                   {b.ville} — {b.quartier}{b.actif ? '' : ' (masquée)'}
