@@ -18,6 +18,7 @@ function PageProduitsContent() {
 
   const [recherche, setRecherche] = useState(searchParams.get('q') || '')
   const [categorie, setCategorie] = useState(searchParams.get('categorie') || '')
+  const [sousCategorie, setSousCategorie] = useState(searchParams.get('sousCategorie') || '')
   const [prixMax, setPrixMax] = useState(PRIX_MAX)
   const [tri, setTri] = useState('pertinence')
   const [badge, setBadge] = useState('')
@@ -30,6 +31,7 @@ function PageProduitsContent() {
 
     if (recherche) query = query.ilike('nom', `%${recherche}%`)
     if (categorie) query = query.eq('categorie', categorie)
+    if (sousCategorie) query = query.eq('sous_categorie', sousCategorie)
     if (prixMax < PRIX_MAX) query = query.lte('prix', prixMax)
     if (badge) query = query.eq('badge', badge)
 
@@ -47,22 +49,23 @@ function PageProduitsContent() {
       setTotal(count || 0)
     }
     setLoading(false)
-  }, [recherche, categorie, prixMax, badge, tri, page])
+  }, [recherche, categorie, sousCategorie, prixMax, badge, tri, page])
 
   useEffect(() => { chargerProduits() }, [chargerProduits])
   useEffect(() => {
     setRecherche(searchParams.get('q') || '')
     setCategorie(searchParams.get('categorie') || '')
+    setSousCategorie(searchParams.get('sousCategorie') || '')
   }, [searchParams])
 
   const resetFiltres = () => {
-    setRecherche(''); setCategorie(''); setPrixMax(PRIX_MAX)
+    setRecherche(''); setCategorie(''); setSousCategorie(''); setPrixMax(PRIX_MAX)
     setBadge(''); setTri('pertinence'); setPage(1)
     router.push('/produits')
   }
 
   const nbPages = Math.ceil(total / PAR_PAGE)
-  const filtresActifs = recherche || categorie || prixMax < PRIX_MAX || badge
+  const filtresActifs = recherche || categorie || sousCategorie || prixMax < PRIX_MAX || badge
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -116,15 +119,27 @@ function PageProduitsContent() {
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">Catégorie</label>
               <div className="space-y-1">
-                <button onClick={() => { setCategorie(''); setPage(1) }}
+                <button onClick={() => { setCategorie(''); setSousCategorie(''); setPage(1) }}
                   className={`w-full text-left text-sm px-2 py-1.5 rounded ${!categorie ? 'bg-brique text-white' : 'hover:bg-beton'}`}>
                   Toutes
                 </button>
                 {CATEGORIES.map(c => (
-                  <button key={c.id} onClick={() => { setCategorie(c.id); setPage(1) }}
-                    className={`w-full text-left text-sm px-2 py-1.5 rounded flex items-center gap-2 ${categorie === c.id ? 'bg-brique text-white' : 'hover:bg-beton'}`}>
-                    <span>{c.emoji}</span> {c.label}
-                  </button>
+                  <div key={c.id}>
+                    <button onClick={() => { setCategorie(c.id); setSousCategorie(''); setPage(1) }}
+                      className={`w-full text-left text-sm px-2 py-1.5 rounded flex items-center gap-2 ${categorie === c.id ? 'bg-brique text-white' : 'hover:bg-beton'}`}>
+                      <span>{c.emoji}</span> {c.label}
+                    </button>
+                    {categorie === c.id && (c as any).sous && (
+                      <div className="ml-7 mt-1 mb-1 space-y-0.5 border-l border-gray-200 pl-2">
+                        {(c as any).sous.map((s: string) => (
+                          <button key={s} onClick={() => { setSousCategorie(sousCategorie === s ? '' : s); setPage(1) }}
+                            className={`w-full text-left text-xs px-2 py-1 rounded ${sousCategorie === s ? 'bg-brique/10 text-brique font-semibold' : 'text-gray-600 hover:bg-beton'}`}>
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>

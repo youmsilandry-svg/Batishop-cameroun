@@ -47,16 +47,16 @@ export type ArticleCommande = {
 }
 
 export const CATEGORIES = [
-  { id: 'maconnerie',      label: 'Maçonnerie',      emoji: '🧱' },
-  { id: 'plomberie',       label: 'Plomberie',       emoji: '🔧' },
-  { id: 'electricite',     label: 'Électricité',     emoji: '⚡' },
-  { id: 'carrelage',       label: 'Carrelage',       emoji: '🪟' },
-  { id: 'photovoltaique',  label: 'Photovoltaïque',  emoji: '☀️' },
-  { id: 'menuiserie',      label: 'Menuiserie',      emoji: '🚪' },
-  { id: 'outillage',       label: 'Outillage',       emoji: '🔨' },
-  { id: 'peinture',        label: 'Peinture',        emoji: '🎨' },
-  { id: 'couverture',      label: 'Couverture',      emoji: '🏠' },
-  { id: 'assainissement',  label: 'Assainissement',  emoji: '💧' },
+  { id: 'maconnerie',      label: 'Maçonnerie',      emoji: '🧱', sous: ['Ciment & Mortier', 'Parpaings & Briques', 'Fer à béton', 'Sable & Gravier', 'Coffrages', 'Enduits & Crépis', 'Colle à carrelage', 'Hourdis & Poutrelles'] },
+  { id: 'plomberie',       label: 'Plomberie',       emoji: '🔧', sous: ['Tuyaux & Raccords PVC', 'Robinets & Mitigeurs', 'WC & Lavabos', 'Douches & Baignoires', 'Pompes à eau', 'Chauffe-eau', 'Réservoirs & Citernes', 'Accessoires sanitaires'] },
+  { id: 'electricite',     label: 'Électricité',     emoji: '⚡', sous: ['Câbles & Fils', 'Disjoncteurs & Tableaux', 'Prises & Interrupteurs', 'Éclairage LED', 'Gaines & Conduits', 'Onduleurs & Groupes', 'Compteurs & Accessoires', 'Alarmes & Sécurité'] },
+  { id: 'carrelage',       label: 'Carrelage',       emoji: '🪟', sous: ['Carrelage Sol', 'Carrelage Mural', 'Carrelage Extérieur', 'Mosaïque & Décor', 'Parquet & Stratifié', 'Colle & Joint', 'Plinthes & Profils', 'Pierre Naturelle'] },
+  { id: 'photovoltaique',  label: 'Photovoltaïque',  emoji: '☀️', sous: ['Panneaux Solaires', 'Batteries & Stockage', 'Onduleurs Solaires', 'Régulateurs de charge', 'Kits Solaires Complets', 'Câbles & Connecteurs', 'Structures & Fixations', 'Éclairage Solaire'] },
+  { id: 'menuiserie',      label: 'Menuiserie',      emoji: '🚪', sous: ['Portes Intérieures', 'Portes Extérieures', 'Fenêtres & Volets', 'Bois de Construction', 'Contreplaqué & OSB', 'Quincaillerie', 'Parquet Bois massif', 'Escaliers & Rampes'] },
+  { id: 'outillage',       label: 'Outillage',       emoji: '🔨', sous: ['Perceuses & Visseuses', 'Meuleuses & Scies', 'Bétonnières', 'Niveaux & Mesure', 'Outils Manuels', 'Compresseurs', 'Échafaudages', 'EPI & Sécurité'] },
+  { id: 'peinture',        label: 'Peinture',        emoji: '🎨', sous: ['Peinture Intérieure', 'Peinture Extérieure', 'Sous-couches & Primaires', 'Vernis & Lasures', 'Enduits Décoratifs', 'Pinceaux & Rouleaux', 'Bâches & Protection', 'Papier Peint'] },
+  { id: 'couverture',      label: 'Couverture & Toiture', emoji: '🏠', sous: ['Tôles & Bacs acier', 'Tuiles', 'Charpente métallique', 'Faîtières & Accessoires', 'Gouttières & Descentes', 'Étanchéité toiture', 'Isolation toiture', 'Plafonds & Faux-plafonds'] },
+  { id: 'assainissement',  label: 'Assainissement',  emoji: '💧', sous: ['Tuyaux PVC évacuation', 'Regards & Caniveaux', 'Fosses septiques', 'Pompes de relevage', 'Bouches & Grilles', 'Drainage', 'Stations de traitement', 'Accessoires évacuation'] },
 ]
 
 export const VILLES = [
