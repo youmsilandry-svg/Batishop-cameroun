@@ -3,8 +3,16 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Store, MapPin, Truck, Package, Crosshair, Navigation } from 'lucide-react'
 import { formatPrix, supabase, VILLES } from '../../lib/supabase'
-import { SITE, PAYS } from '../../lib/config'
+import { SITE, PAYS, LIVRAISON } from '../../lib/config'
 import { usePanier } from '../../lib/panier'
+
+// Distance approximative (km) entre deux points GPS
+const haversineKm = (la1: number, lo1: number, la2: number, lo2: number) => {
+  const R = 6371, toRad = (d: number) => d * Math.PI / 180
+  const dLat = toRad(la2 - la1), dLon = toRad(lo2 - lo1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(la1)) * Math.cos(toRad(la2)) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
 
 export default function PageCommande() {
   const { parPartenaire, total, viderPanier } = usePanier()
@@ -17,6 +25,7 @@ export default function PageCommande() {
   const [form, setForm] = useState({ nom: '', telephone: '', email: '', ville: 'Douala', adresse: '', notes: '', paiement: 'reception' as 'reception' | 'en_ligne', latitude: '', longitude: '' })
   const [geo, setGeo] = useState<'idle' | 'asking' | 'ok' | 'refused'>('idle')
   const [userId, setUserId] = useState<string | null>(null)
+  const [coordsMag, setCoordsMag] = useState<Record<string, { lat: number; lng: number }>>({})
 
   useEffect(() => {
     setMounted(true)
@@ -36,6 +45,24 @@ export default function PageCommande() {
     })()
   }, [])
 
+  // Récupère les coordonnées GPS des magasins présents dans le panier
+  useEffect(() => {
+    const ids = parPartenaire.map(g => g.point_vente_id).filter(id => id && id !== 'batishop')
+    if (ids.length === 0) { setCoordsMag({}); return }
+    ;(async () => {
+      const { data } = await supabase
+        .from('partenaires_magasins')
+        .select('id, latitude, longitude')
+        .in('id', ids)
+      const map: Record<string, { lat: number; lng: number }> = {}
+      ;(data || []).forEach((m: any) => {
+        if (m.latitude != null && m.longitude != null) map[m.id] = { lat: Number(m.latitude), lng: Number(m.longitude) }
+      })
+      setCoordsMag(map)
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parPartenaire.map(g => g.point_vente_id).join(',')])
+
   const maPosition = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) { setGeo('refused'); return }
     setGeo('asking')
@@ -51,7 +78,29 @@ export default function PageCommande() {
   if (parPartenaire.length === 0) { router.push('/panier'); return null }
 
   const modeDe = (g: any) => modes[g.point_vente_id] || 'retrait'
-  const fraisDe = (g: any) => modeDe(g) === 'livraison' ? (g.frais_livraison_base || 0) : 0
+
+  // Position du client (si captée) et distance par magasin
+  const cLat = parseFloat(form.latitude), cLng = parseFloat(form.longitude)
+  const clientGps = !isNaN(cLat) && !isNaN(cLng)
+  const coordStore = (g: any): { lat: number; lng: number } | null => {
+    if (g.point_vente_id === 'batishop') {
+      return (LIVRAISON.batishopLat && LIVRAISON.batishopLng)
+        ? { lat: LIVRAISON.batishopLat, lng: LIVRAISON.batishopLng } : null
+    }
+    return coordsMag[g.point_vente_id] || null
+  }
+  const distanceKm = (g: any): number | null => {
+    const s = coordStore(g)
+    if (!clientGps || !s) return null
+    return haversineKm(cLat, cLng, s.lat, s.lng) * LIVRAISON.facteurRoute
+  }
+  const fraisDe = (g: any) => {
+    if (modeDe(g) !== 'livraison') return 0
+    if (LIVRAISON.gratuiteAuDessusDe > 0 && total >= LIVRAISON.gratuiteAuDessusDe) return 0
+    const km = distanceKm(g)
+    if (km == null) return (g.frais_livraison_base || LIVRAISON.base) // pas de position -> forfait de base
+    return Math.round(LIVRAISON.base + km * LIVRAISON.parKm)
+  }
   const totalLivraison = parPartenaire.reduce((s, g) => s + fraisDe(g), 0)
   // Frais mobile money : ajoutés seulement si le client paie en ligne (mobile money)
   const fraisMomo = form.paiement === 'en_ligne'
@@ -286,6 +335,9 @@ export default function PageCommande() {
             <div className="border-t pt-3 space-y-1 text-sm">
               <div className="flex justify-between text-gray-600"><span>Produits</span><span>{formatPrix(total)}</span></div>
               <div className="flex justify-between text-gray-600"><span>Livraison</span><span>{totalLivraison === 0 ? 'gratuite' : formatPrix(totalLivraison)}</span></div>
+              {ilYaLivraison && !clientGps && (
+                <p className="text-xs text-amber-600">📍 Activez « ma position » plus haut pour un calcul exact des frais (sinon forfait de base).</p>
+              )}
               {fraisMomo > 0 && (
                 <div className="flex justify-between text-gray-600"><span>Frais Mobile Money ({PAYS.fraisMomoPourcent}%)</span><span>{formatPrix(fraisMomo)}</span></div>
               )}

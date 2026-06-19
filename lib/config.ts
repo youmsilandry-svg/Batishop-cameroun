@@ -63,3 +63,17 @@ export const PAYS = {
 //    ],
 //  }
 // ---------------------------------------------------------------------
+
+// =====================================================================
+//  LIVRAISON — calcul des frais à la distance
+//  frais = base + (distance magasin→client en km) × parKm
+// =====================================================================
+export const LIVRAISON = {
+  base: 1000,             // frais de base en FCFA (prise en charge minimale)
+  parKm: 150,             // tarif au kilomètre en FCFA
+  facteurRoute: 1.3,      // correction distance à vol d'oiseau -> route réelle
+  gratuiteAuDessusDe: 0,  // seuil de livraison gratuite en FCFA (0 = désactivé)
+  // Coordonnées du dépôt BatiShop (pour les livraisons "BatiShop")
+  batishopLat: 0,         // ex: 3.8480
+  batishopLng: 0,         // ex: 11.5021
+}
