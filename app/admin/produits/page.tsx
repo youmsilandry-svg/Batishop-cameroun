@@ -54,6 +54,8 @@ export default function AdminProduits() {
   const [partenairesStock, setPartenairesStock] = useState<any[]>([])
   const [loadingDetail, setLoadingDetail]       = useState(false)
   const [ongletDetail, setOngletDetail]         = useState<'infos'|'stock'|'edit'>('infos')
+  const [stockFVille, setStockFVille] = useState('')
+  const [stockFPart, setStockFPart]   = useState('')
   const [form, setForm]           = useState<any>({})
   const [saving, setSaving]       = useState(false)
   const [succes, setSucces]       = useState('')
@@ -108,6 +110,7 @@ export default function AdminProduits() {
 
   const ouvrirDetail = async (p: any) => {
     setDetail(p); setForm({ ...p }); setOngletDetail('infos'); setPartenairesStock([]); setExclusivitesVille([])
+    setStockFVille(''); setStockFPart('')
     setLoadingDetail(true)
     const stocks = await api(`stocks_partenaires?produit_id=eq.${p.id}&select=id,partenaire_id,quantite,disponible_immediat,mis_en_avant,partenaires_magasins(nom,ville,quartier,telephone,statut)&order=quantite.desc`)
     setPartenairesStock(Array.isArray(stocks) ? stocks.filter((s:any) => s.partenaires_magasins?.statut === 'actif') : [])
@@ -202,6 +205,14 @@ export default function AdminProduits() {
         <button style={{ ...S.btn(), width:'100%', padding:11 }} onClick={connexion}>Connexion →</button>
       </div>
     </div>
+  )
+
+  // Filtres du tableau "Stock chez les partenaires"
+  const villesStock = Array.from(new Set(partenairesStock.map((s:any) => s.partenaires_magasins?.ville).filter(Boolean))).sort()
+  const partsStock  = Array.from(new Set(partenairesStock.map((s:any) => s.partenaires_magasins?.nom).filter(Boolean))).sort()
+  const stocksFiltres = partenairesStock.filter((s:any) =>
+    (!stockFVille || s.partenaires_magasins?.ville === stockFVille) &&
+    (!stockFPart  || s.partenaires_magasins?.nom   === stockFPart)
   )
 
   return (
@@ -473,6 +484,29 @@ export default function AdminProduits() {
                   <div style={{ padding:'12px 16px', borderBottom:'1px solid #f0f0f0', fontWeight:700, fontSize:14, color:'#1A2332' }}>
                     🏪 Stock chez les partenaires
                   </div>
+                  {!loadingDetail && partenairesStock.length > 0 && (
+                    <div style={{ display:'flex', gap:10, flexWrap:'wrap', padding:'10px 16px', borderBottom:'1px solid #f0f0f0', background:'#fafafa' }}>
+                      <select value={stockFVille} onChange={e => setStockFVille(e.target.value)}
+                        style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:12, fontFamily:'inherit', color:'#333', background:'#fff' }}>
+                        <option value="">📍 Toutes les villes</option>
+                        {villesStock.map(v => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                      <select value={stockFPart} onChange={e => setStockFPart(e.target.value)}
+                        style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:12, fontFamily:'inherit', color:'#333', background:'#fff' }}>
+                        <option value="">🏪 Tous les partenaires</option>
+                        {partsStock.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                      {(stockFVille || stockFPart) && (
+                        <button onClick={() => { setStockFVille(''); setStockFPart('') }}
+                          style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:12, fontFamily:'inherit', cursor:'pointer', background:'#fff', color:'#C0392B', fontWeight:600 }}>
+                          ✕ Réinitialiser
+                        </button>
+                      )}
+                      <span style={{ alignSelf:'center', fontSize:12, color:'#999' }}>
+                        {stocksFiltres.length} / {partenairesStock.length} partenaire{partenairesStock.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
                   {loadingDetail ? (
                     <div style={{ padding:32, textAlign:'center', color:'#bbb' }}>Chargement…</div>
                   ) : partenairesStock.length === 0 ? (
@@ -490,7 +524,9 @@ export default function AdminProduits() {
                         </tr>
                       </thead>
                       <tbody>
-                        {partenairesStock.map((s, i) => {
+                        {stocksFiltres.length === 0 ? (
+                          <tr><td colSpan={6} style={{ padding:24, textAlign:'center', color:'#bbb' }}>Aucun partenaire ne correspond à ces filtres</td></tr>
+                        ) : stocksFiltres.map((s, i) => {
                           const mag = s.partenaires_magasins
                           return (
                             <tr key={i}
