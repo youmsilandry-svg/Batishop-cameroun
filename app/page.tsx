@@ -31,7 +31,7 @@ const CONSEILS = [
 const SERVICES = [
   { ico: '📋', titre: 'Devis professionnel', desc: 'Chiffrage rapide pour vos chantiers', href: '/devis' },
   { ico: '🚚', titre: 'Livraison & tarifs', desc: 'Partout au Cameroun', href: '/aide/livraison' },
-  { ico: '🏬', titre: 'Retrait en magasin', desc: 'Chez nos quincailleries partenaires', href: '/disponible' },
+  { ico: '🏬', titre: 'Retrait en magasin', desc: 'Chez nos quincailleries partenaires', href: '/produits' },
   { ico: '🤝', titre: 'Devenir partenaire', desc: 'Quincailleries & artisans', href: '/partenaires' },
 ]
 

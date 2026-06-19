@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { MapPin, Clock, Navigation, Store, Package, ChevronRight, Zap, ShoppingCart, Minus, Plus, Check } from 'lucide-react'
-import Link from 'next/link'
+import { MapPin, Clock, Navigation, Store, Package, Zap, ShoppingCart, Minus, Plus, Check } from 'lucide-react'
 import { supabase, VILLES, formatPrix } from '../../lib/supabase'
 import { ajouterLignePanier } from '../../lib/panier'
 
@@ -185,7 +184,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   🏪 {partenaires.length} partenaire{partenaires.length > 1 ? 's' : ''} à {ville}
                 </p>
-                {partenaires.slice(0, 3).map((s: any, i: number) => {
+                {partenaires.map((s: any, i: number) => {
                   const mag = s.partenaires_magasins
                   return (
                     <div key={i} className="flex items-start gap-3 p-3 bg-beton rounded-xl">
@@ -231,12 +230,6 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                     </div>
                   )
                 })}
-                {partenaires.length > 3 && (
-                  <Link href={`/disponible?q=${encodeURIComponent(produitNom)}&ville=${ville}&delai=${delai}`}
-                    className="flex items-center justify-center gap-1 text-sm text-brique hover:underline py-2">
-                    Voir les {partenaires.length - 3} autres points de retrait <ChevronRight size={14}/>
-                  </Link>
-                )}
               </div>
             ) : cherche && (
               <div className="text-center py-6 text-gray-400">

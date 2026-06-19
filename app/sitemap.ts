@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 const BASE = 'https://batishop-cameroun.com'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const pagesFixes = ['', '/produits', '/disponible', '/devis', '/partenaires', '/conseils', '/contact', '/aide/faq', '/aide/livraison', '/aide/retours']
+  const pagesFixes = ['', '/produits', '/devis', '/partenaires', '/conseils', '/contact', '/aide/faq', '/aide/livraison', '/aide/retours']
     .map(p => ({
       url: `${BASE}${p}`,
       lastModified: new Date(),
