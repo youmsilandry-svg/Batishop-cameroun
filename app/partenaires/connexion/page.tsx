@@ -15,26 +15,41 @@ export default function ConnexionPartenaire() {
 
   useEffect(() => {
     const token = localStorage.getItem('batishop_partenaire_token')
-    if (token) router.push('/partenaires/mon-espace')
+    if (!token) return
+    // Ne rediriger que si le token est encore valide (sinon on le nettoie et on reste sur le formulaire)
+    fetch(`${URL}/auth/v1/user`, { headers: { apikey: KEY, Authorization: `Bearer ${token}` } })
+      .then(r => {
+        if (r.ok) router.push('/partenaires/mon-espace')
+        else {
+          localStorage.removeItem('batishop_partenaire_token')
+          localStorage.removeItem('batishop_partenaire_user')
+        }
+      })
+      .catch(() => {})
   }, [router])
 
   const seConnecter = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true); setErreur('')
-    const res = await fetch(`${URL}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pwd })
-    })
-    const data = await res.json()
-    if (data.access_token) {
-      localStorage.setItem('batishop_partenaire_token', data.access_token)
-      localStorage.setItem('batishop_partenaire_user', JSON.stringify(data.user))
-      router.push('/partenaires/mon-espace')
-    } else {
-      setErreur('Email ou mot de passe incorrect')
+    try {
+      const res = await fetch(`${URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pwd })
+      })
+      const data = await res.json()
+      if (data.access_token) {
+        localStorage.setItem('batishop_partenaire_token', data.access_token)
+        localStorage.setItem('batishop_partenaire_user', JSON.stringify(data.user))
+        router.push('/partenaires/mon-espace')
+      } else {
+        setErreur(data.error_description || data.msg || 'Email ou mot de passe incorrect')
+        setLoading(false)
+      }
+    } catch {
+      setErreur('Connexion impossible. Vérifiez votre réseau et réessayez.')
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (

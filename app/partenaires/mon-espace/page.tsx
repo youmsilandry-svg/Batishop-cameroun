@@ -53,13 +53,28 @@ export default function EspacePartenaire() {
 
     async function charger() {
       const uid = JSON.parse(u||'{}').id
+
+      // Vérifier que le token est encore valide (il expire au bout d'~1h)
+      const me = await fetch(`${URL}/auth/v1/user`, { headers: { apikey: KEY, Authorization: `Bearer ${t}` } })
+      if (!me.ok) {
+        localStorage.removeItem('batishop_partenaire_token')
+        localStorage.removeItem('batishop_partenaire_user')
+        router.push('/partenaires/connexion'); return
+      }
+
       // L'entreprise (statut, identité) — le compte gère toute l'enseigne
       const ents = await apiAuth(`entreprises?user_id=eq.${uid}&select=*`, t!)
       if (ents && ents.length) setEntreprise(ents[0])
 
       // Toutes les boutiques rattachées à ce compte
       const mag = await apiAuth(`partenaires_magasins?user_id=eq.${uid}&select=*&order=ville.asc`, t!)
-      if (!mag || mag.length === 0) { router.push('/partenaires'); return }
+      if (mag === null) {
+        // Lecture refusée (token invalide) → reconnexion
+        localStorage.removeItem('batishop_partenaire_token')
+        localStorage.removeItem('batishop_partenaire_user')
+        router.push('/partenaires/connexion'); return
+      }
+      if (mag.length === 0) { router.push('/partenaires'); return }
       setBoutiques(mag)
       const m = mag[0]
       setMagasin(m)
