@@ -43,6 +43,15 @@ export default function EspacePartenaire() {
   const [stocksParBoutique, setStocksParBoutique] = useState<Record<string, any[]>>({})
   const [vueStock, setVueStock] = useState<'ville' | 'magasin'>('ville')
   const [vueCmd, setVueCmd] = useState<'ville' | 'magasin'>('ville')
+  const [openProd, setOpenProd] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
   const [prixMoyens, setPrixMoyens] = useState<Record<string, { prix_moyen: number; nb_partenaires: number }>>({})
   const [rechercheProd, setRechercheProd] = useState('')
   const [modeAjout, setModeAjout] = useState(false)
@@ -559,6 +568,72 @@ export default function EspacePartenaire() {
             )}
 
             {(modeAjout || mesProduits.length > 0) && (
+            isMobile ? (
+              <div>
+                {produitsAffiches.slice(0, 100).map(p => {
+                  const prix = getPrix(p.id)
+                  const total = getStockTotal(p.id)
+                  const range = getPrixRange(p.id)
+                  const moy = prixMoyens[p.id]
+                  const declared = idsDeclares.has(p.id)
+                  const enModif = modifStocks[p.id] !== undefined || modifPrix[p.id] !== undefined || modifPromo[p.id] !== undefined
+                  const open = openProd === p.id
+                  const lbl = { fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, display: 'block', marginBottom: 4 }
+                  const fld = (mod: boolean) => ({ width: '100%', padding: '10px 12px', border: `1.5px solid ${mod ? '#C0392B' : '#ddd'}`, borderRadius: 8, fontSize: 15, boxSizing: 'border-box' as const })
+                  const hint = { fontSize: 11, color: '#999', marginTop: 4 }
+                  return (
+                    <div key={p.id} style={{ border: '1px solid #eee', borderRadius: 10, marginBottom: 8, background: enModif ? '#f0fff4' : '#fff', overflow: 'hidden' }}>
+                      <button onClick={() => setOpenProd(open ? null : p.id)}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontWeight: 600, color: '#1A2332', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nom}</div>
+                          <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
+                            {!declared ? 'Non proposé' : total === 0 ? '✗ Rupture' : `✓ ${total} en stock`}{prix != null ? ` · ${fmtFcfa(prix)}` : ''}
+                          </div>
+                        </div>
+                        <span style={{ color: '#C0392B', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{open ? '−' : '+'}</span>
+                      </button>
+                      {open && (
+                        <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div>
+                            <label style={lbl}>Mon prix (FCFA)</label>
+                            <input type="number" min={0} placeholder="Prix FCFA"
+                              value={modifPrix[p.id] !== undefined ? modifPrix[p.id] : prix ?? ''}
+                              onChange={e => { const v = e.target.value === '' ? undefined : Number(e.target.value); if (v === undefined) setModifPrix(prev => { const n = { ...prev }; delete n[p.id]; return n }); else setModifPrix(prev => ({ ...prev, [p.id]: v })) }}
+                              style={fld(modifPrix[p.id] !== undefined)} />
+                            {vueStock === 'ville' && range && (
+                              <div style={hint}>Prix dans la ville : {range.min.toLocaleString('fr-FR')}{range.min !== range.max ? ` – ${range.max.toLocaleString('fr-FR')}` : ''} FCFA</div>
+                            )}
+                          </div>
+                          <div>
+                            <label style={lbl}>Ancien prix (promo, optionnel)</label>
+                            <input type="number" min={0} placeholder="Ancien prix barré"
+                              value={modifPromo[p.id] !== undefined ? (modifPromo[p.id] ?? '') : (getPromo(p.id) ?? '')}
+                              onChange={e => { const v = e.target.value === '' ? null : Number(e.target.value); setModifPromo(prev => ({ ...prev, [p.id]: v })) }}
+                              style={fld(modifPromo[p.id] !== undefined)} />
+                          </div>
+                          <div>
+                            <label style={lbl}>Mon stock{vueStock === 'ville' ? ' (appliqué à tous les magasins)' : ''}</label>
+                            <input type="number" min={0}
+                              placeholder={vueStock === 'ville' ? 'Quantité (tous)' : '0'}
+                              value={modifStocks[p.id] !== undefined ? modifStocks[p.id] : getStock(p.id) ?? ''}
+                              onChange={e => { const v = e.target.value === '' ? undefined : Number(e.target.value); if (v === undefined) setModifStocks(prev => { const n = { ...prev }; delete n[p.id]; return n }); else setModifStocks(prev => ({ ...prev, [p.id]: v })) }}
+                              style={fld(modifStocks[p.id] !== undefined)} />
+                            {vueStock === 'ville' && (<div style={hint}>Total ville : {total} {p.unite}</div>)}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#888', borderTop: '1px solid #f0f0f0', paddingTop: 10 }}>
+                            Prix moyen du site : {moy ? `${moy.prix_moyen.toLocaleString('fr-FR')} FCFA · ${moy.nb_partenaires} mag.` : '—'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                {produitsAffiches.length > 100 && (
+                  <p style={{ fontSize: 12, color: '#bbb', textAlign: 'center', marginTop: 10 }}>100 produits affichés sur {produitsAffiches.length}. Affinez votre recherche pour voir les autres.</p>
+                )}
+              </div>
+            ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
@@ -675,7 +750,7 @@ export default function EspacePartenaire() {
                 </p>
               )}
             </div>
-            )}
+            ) )}
 
             {nbModifs > 0 && (
               <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 100 }}>
