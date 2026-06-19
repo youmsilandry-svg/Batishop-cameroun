@@ -74,9 +74,14 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
 
   const feedback = (k: string) => { setAjoute(p => ({ ...p, [k]: true })); setTimeout(() => setAjoute(p => ({ ...p, [k]: false })), 1800) }
 
+  // Prix affiché et facturé pour BatiShop = moyenne des partenaires (repli sur prix catalogue si aucun)
+  const prixBatishop = (prixMoyen && prixMoyen.nb_partenaires > 0 && prixMoyen.prix_moyen)
+    ? prixMoyen.prix_moyen
+    : (produit?.prix ?? 0)
+
   const ajouterBatishop = () => {
     if (!produit) return
-    ajouterLignePanier(produit, { id: 'batishop', nom: 'BatiShop', ville, prix_local: produit.prix, livre: true, frais_livraison_base: 0 }, getQte('batishop'))
+    ajouterLignePanier(produit, { id: 'batishop', nom: 'BatiShop', ville, prix_local: prixBatishop, livre: true, frais_livraison_base: 0 }, getQte('batishop'))
     feedback('batishop')
   }
   const ajouterPartenaire = (s: any) => {
@@ -150,7 +155,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="font-bold text-sm text-acier">BatiShop — Livraison à domicile</span>
                   {produit && (
-                    <span className="text-xs bg-brique/10 text-brique px-1.5 py-0.5 rounded-full font-bold">{formatPrix(produit.prix)}</span>
+                    <span className="text-xs bg-brique/10 text-brique px-1.5 py-0.5 rounded-full font-bold">{formatPrix(prixBatishop)}</span>
                   )}
                 </div>
                 <p className="text-xs text-gray-500">Commande en ligne · Livraison à {ville} · Prix garanti</p>
@@ -158,7 +163,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                   <Stepper k="batishop" max={produit?.stock ?? 999}/>
                   <button onClick={ajouterBatishop} disabled={!produit || getQte('batishop') < 1}
                     className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${ajoute['batishop'] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
-                    {ajoute['batishop'] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter — {formatPrix(produit?.prix || 0)}</>}
+                    {ajoute['batishop'] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter — {formatPrix(prixBatishop)}</>}
                   </button>
                 </div>
               </div>
