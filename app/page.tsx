@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { supabase } from '../lib/supabase'
+import { supabase, VILLES } from '../lib/supabase'
 import { CarteProduit } from '../components/produits/CarteProduit'
 
 const CATEGORIES = [
@@ -74,7 +74,7 @@ export default async function HomePage() {
       <section className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-4 grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            ['🚚', 'Livraison rapide', 'Douala & Yaoundé en 24h'],
+            ['🚚', 'Livraison rapide', `${VILLES[0]} & ${VILLES[1]} en 24h`],
             ['✅', 'Qualité garantie', 'Produits certifiés'],
             ['📱', 'Paiement mobile', 'Orange Money & MTN MoMo'],
             ['📞', 'Support 7j/7', 'À votre écoute'],
@@ -220,9 +220,9 @@ export default async function HomePage() {
 
       {/* VILLES */}
       <section className="max-w-7xl mx-auto px-4 mb-12">
-        <h2 className="font-condensed font-bold text-2xl text-acier mb-4">Livraison dans tout le Cameroun</h2>
+        <h2 className="font-condensed font-bold text-2xl text-acier mb-4">Livraison dans tout le pays</h2>
         <div className="flex flex-wrap gap-2">
-          {['Douala', 'Yaoundé', 'Bafoussam', 'Garoua', 'Bamenda', 'Maroua', 'Ngaoundéré', 'Bertoua', 'Ebolowa', 'Kumba', 'Limbe', 'Kribi'].map(v => (
+          {VILLES.map(v => (
             <span key={v} className="bg-white border border-gray-200 text-acier text-sm px-4 py-1.5 rounded-full font-medium">📍 {v}</span>
           ))}
         </div>

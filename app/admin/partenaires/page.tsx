@@ -1,12 +1,12 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
+import { VILLES } from '../../../lib/supabase'
 
 const BASE = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const PWD  = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123'
 
-const VILLES = ['Douala','Yaoundé','Bafoussam','Garoua','Bamenda','Maroua','Ngaoundéré','Bertoua','Ebolowa','Kumba','Limbe','Kribi']
 
 const api = async (path: string, opts: any = {}) => {
   const res = await fetch(`${BASE}/rest/v1/${path}`, { ...opts, headers: {'apikey':KEY,'Authorization':`Bearer ${KEY}`,'Content-Type':'application/json','Prefer':'return=representation',...(opts.headers||{})}})
