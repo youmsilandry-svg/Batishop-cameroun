@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { SITE } from '../../../lib/config'
+import { CATEGORIES, fetchCategories } from '../../../lib/supabase'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -53,9 +54,13 @@ export default function EspacePartenaire() {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  useEffect(() => { fetchCategories().then(setCats) }, [])
   const [prixMoyens, setPrixMoyens] = useState<Record<string, { prix_moyen: number; nb_partenaires: number }>>({})
   const [rechercheProd, setRechercheProd] = useState('')
   const [categorieFiltre, setCategorieFiltre] = useState('')
+  const [sousCategorieFiltre, setSousCategorieFiltre] = useState('')
+  const [cats, setCats] = useState<any[]>(CATEGORIES)
   const [modeAjout, setModeAjout] = useState(false)
 
   useEffect(() => {
@@ -267,6 +272,7 @@ export default function EspacePartenaire() {
   const matchRecherche = (p: any) =>
     (!rechercheProd || p.nom.toLowerCase().includes(rechercheProd.toLowerCase()) || (p.categorie || '').toLowerCase().includes(rechercheProd.toLowerCase()))
     && (!categorieFiltre || p.categorie === categorieFiltre)
+    && (!sousCategorieFiltre || p.sous_categorie === sousCategorieFiltre)
 
   // Mes produits : uniquement ceux que je propose
   const mesProduits = produits.filter(p => idsDeclares.has(p.id) && matchRecherche(p))
@@ -549,18 +555,29 @@ export default function EspacePartenaire() {
               onChange={e => setRechercheProd(e.target.value)}
               style={{ ...S.input, marginBottom: 10 }}/>
 
-            {/* Filtre par catégorie */}
+            {/* Filtre par catégorie + sous-catégorie */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>Catégorie :</span>
-              <select value={categorieFiltre} onChange={e => setCategorieFiltre(e.target.value)}
+              <select value={categorieFiltre} onChange={e => { setCategorieFiltre(e.target.value); setSousCategorieFiltre('') }}
                 style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
                 <option value="">Toutes les catégories</option>
-                {categoriesDispo.map(c => (
-                  <option key={c} value={c}>{c}</option>
+                {cats.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
                 ))}
               </select>
-              {(categorieFiltre || rechercheProd) && (
-                <button onClick={() => { setCategorieFiltre(''); setRechercheProd('') }}
+
+              {categorieFiltre && (cats.find((c: any) => c.id === categorieFiltre)?.sous || []).length > 0 && (
+                <select value={sousCategorieFiltre} onChange={e => setSousCategorieFiltre(e.target.value)}
+                  style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
+                  <option value="">Tous les sous-groupes</option>
+                  {(cats.find((c: any) => c.id === categorieFiltre)?.sous || []).map((s: string) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              )}
+
+              {(categorieFiltre || sousCategorieFiltre || rechercheProd) && (
+                <button onClick={() => { setCategorieFiltre(''); setSousCategorieFiltre(''); setRechercheProd('') }}
                   style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #eee', background: '#fff', color: '#888', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
                   ✕ Effacer
                 </button>
