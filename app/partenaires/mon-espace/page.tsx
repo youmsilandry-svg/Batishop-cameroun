@@ -273,7 +273,7 @@ export default function EspacePartenaire() {
     (!rechercheProd || p.nom.toLowerCase().includes(rechercheProd.toLowerCase()) || (p.categorie || '').toLowerCase().includes(rechercheProd.toLowerCase()))
     && (!categorieFiltre || p.categorie === categorieFiltre)
     && (!sousCategorieFiltre || p.sous_categorie === sousCategorieFiltre)
-    && (!p.partenaire_exclusif || boutiques.some(b => b.id === p.partenaire_exclusif))
+    && (!p.partenaire_exclusif || p.partenaire_exclusif === entreprise?.id)
 
   // Mes produits : uniquement ceux que je propose
   const mesProduits = produits.filter(p => idsDeclares.has(p.id) && matchRecherche(p))

@@ -47,7 +47,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
       .from('stocks_partenaires')
       .select(`
         quantite, disponible_immediat, prix_local, mis_en_avant,
-        partenaires_magasins!inner(id, nom, ville, quartier, adresse, telephone, horaires, latitude, longitude)
+        partenaires_magasins!inner(id, entreprise_id, nom, ville, quartier, adresse, telephone, horaires, latitude, longitude)
       `)
       .eq('produit_id', produitId)
       .eq('partenaires_magasins.ville', ville)
@@ -57,7 +57,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
     let list = data || []
     // Règle de priorité : exclusivité totale > exclusivité ville > mise en avant
     if (prodExcl?.partenaire_exclusif) {
-      list = list.filter((s: any) => s.partenaires_magasins?.id === prodExcl.partenaire_exclusif)
+      list = list.filter((s: any) => s.partenaires_magasins?.entreprise_id === prodExcl.partenaire_exclusif)
     } else {
       const e = exclVille.find((x: any) => x.ville === ville)
       if (e) list = list.filter((s: any) => s.partenaires_magasins?.id === e.partenaire_id)

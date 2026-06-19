@@ -50,6 +50,7 @@ export default function AdminProduits() {
   const [succes, setSucces]       = useState('')
   const [cats, setCats]           = useState<any[]>([TOUTES, ...CATEGORIES])
   const [boutiquesAll, setBoutiquesAll] = useState<any[]>([])
+  const [entreprisesAll, setEntreprisesAll] = useState<any[]>([])
   const [exclusivitesVille, setExclusivitesVille] = useState<any[]>([])
   const [nvExclVille, setNvExclVille] = useState('')
   const [nvExclPart, setNvExclPart]   = useState('')
@@ -58,6 +59,7 @@ export default function AdminProduits() {
   useEffect(() => {
     if (!auth) return
     api('partenaires_magasins?select=id,nom,ville,quartier,statut&order=ville.asc').then((d: any) => setBoutiquesAll(Array.isArray(d) ? d : []))
+    api('entreprises?select=id,nom,statut&order=nom.asc').then((d: any) => setEntreprisesAll(Array.isArray(d) ? d : []))
   }, [auth])
 
   const PER = 25
@@ -348,7 +350,7 @@ export default function AdminProduits() {
                       {detail.badge && <span style={{ background:'#fff0ee', color:'#C0392B', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>{detail.badge.toUpperCase()}</span>}
                       {detail.partenaire_exclusif && (
                         <span style={{ background:'#1A2332', color:'#fff', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>
-                          🔒 {detail.produit_partenaire ? 'Produit propre' : 'Exclusivité'} — {boutiquesAll.find(b=>b.id===detail.partenaire_exclusif)?.nom || '…'}
+                          🔒 {detail.produit_partenaire ? 'Produit propre' : 'Exclusivité'} — {entreprisesAll.find(en=>en.id===detail.partenaire_exclusif)?.nom || '…'}
                         </span>
                       )}
                     </div>
@@ -562,11 +564,11 @@ export default function AdminProduits() {
                         <div>
                           <select value={v||''} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}>
                             <option value="">Aucune — vendu par tous les partenaires</option>
-                            {boutiquesAll.filter(b=>b.statut==='actif').map(b=>(
-                              <option key={b.id} value={b.id}>{b.nom} — {b.ville}{b.quartier?` (${b.quartier})`:''}</option>
+                            {entreprisesAll.filter(en=>en.statut==='actif'||en.statut===undefined).map(en=>(
+                              <option key={en.id} value={en.id}>{en.nom}</option>
                             ))}
                           </select>
-                          {v && <div style={{ fontSize:11, color:'#C0392B', marginTop:6 }}>🔒 Ce produit ne sera vendable que par ce partenaire (partout).</div>}
+                          {v && <div style={{ fontSize:11, color:'#C0392B', marginTop:6 }}>🔒 Réservé à ce partenaire : tous ses magasins peuvent le vendre, aucun autre partenaire.</div>}
                         </div>
                       ) : f.type==='checkbox' ? (
                         <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'#555' }}>
