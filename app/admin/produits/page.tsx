@@ -50,7 +50,6 @@ export default function AdminProduits() {
   const [succes, setSucces]       = useState('')
   const [cats, setCats]           = useState<any[]>([TOUTES, ...CATEGORIES])
   const [boutiquesAll, setBoutiquesAll] = useState<any[]>([])
-  const [entreprisesAll, setEntreprisesAll] = useState<any[]>([])
   const [exclusivitesVille, setExclusivitesVille] = useState<any[]>([])
   const [nvExclVille, setNvExclVille] = useState('')
   const [nvExclPart, setNvExclPart]   = useState('')
@@ -58,8 +57,7 @@ export default function AdminProduits() {
   useEffect(() => { fetchCategories().then(list => setCats([TOUTES, ...list])) }, [])
   useEffect(() => {
     if (!auth) return
-    api('partenaires_magasins?select=id,nom,ville,quartier,statut&order=ville.asc').then((d: any) => setBoutiquesAll(Array.isArray(d) ? d : []))
-    api('entreprises?select=id,nom,statut&order=nom.asc').then((d: any) => setEntreprisesAll(Array.isArray(d) ? d : []))
+    api('partenaires_magasins?select=id,nom,ville,quartier,statut,entreprise_id&order=ville.asc').then((d: any) => setBoutiquesAll(Array.isArray(d) ? d : []))
   }, [auth])
 
   const PER = 25
@@ -146,6 +144,14 @@ export default function AdminProduits() {
   }
 
   const villesDispo = Array.from(new Set(boutiquesAll.filter(b => b.statut === 'actif').map(b => b.ville).filter(Boolean))).sort()
+  // Liste des partenaires (entreprises) dérivée des magasins lisibles publiquement
+  const partenairesUniq = (() => {
+    const map = new Map<string, any>()
+    boutiquesAll.filter(b => b.entreprise_id && b.statut === 'actif').forEach(b => {
+      if (!map.has(b.entreprise_id)) map.set(b.entreprise_id, { id: b.entreprise_id, nom: b.nom, ville: b.ville })
+    })
+    return Array.from(map.values()).sort((a, b) => a.nom.localeCompare(b.nom))
+  })()
   const totalStockPartenaires = partenairesStock.reduce((s, x) => s + (x.quantite || 0), 0)
   const nbPages = Math.ceil(total / PER)
 
@@ -172,10 +178,11 @@ export default function AdminProduits() {
         <div style={{ fontWeight:800, fontSize:16, padding:'4px 8px', marginBottom:12 }}>Bati<span style={{color:'#C0392B'}}>Shop</span> Admin</div>
         <a href="/admin"              style={S.navbtn(false) as any}>📊 Dashboard</a>
         <button                       style={S.navbtn(true)}>📦 Produits</button>
-        <a href="/admin"              style={S.navbtn(false) as any}>🛒 Commandes</a>
-        <a href="/admin"              style={S.navbtn(false) as any}>📋 Devis</a>
+        <a href="/admin/commandes"    style={S.navbtn(false) as any}>🛒 Commandes</a>
+        <a href="/admin/devis"        style={S.navbtn(false) as any}>📋 Devis</a>
+        <a href="/admin/clients"      style={S.navbtn(false) as any}>👥 Clients</a>
         <a href="/admin/partenaires"  style={S.navbtn(false) as any}>🏪 Partenaires</a>
-        <a href="/admin"              style={S.navbtn(false) as any}>📊 Stocks</a>
+        <a href="/admin/stocks-admin" style={S.navbtn(false) as any}>📊 Stocks</a>
         <div style={{ marginTop:'auto', paddingTop:12, borderTop:'1px solid rgba(255,255,255,.1)' }}>
           <a href="/" style={{ color:'rgba(255,255,255,.35)', fontSize:12, textDecoration:'none' }}>← Voir le site</a>
         </div>
@@ -350,7 +357,7 @@ export default function AdminProduits() {
                       {detail.badge && <span style={{ background:'#fff0ee', color:'#C0392B', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>{detail.badge.toUpperCase()}</span>}
                       {detail.partenaire_exclusif && (
                         <span style={{ background:'#1A2332', color:'#fff', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700 }}>
-                          🔒 {detail.produit_partenaire ? 'Produit propre' : 'Exclusivité'} — {entreprisesAll.find(en=>en.id===detail.partenaire_exclusif)?.nom || '…'}
+                          🔒 {detail.produit_partenaire ? 'Produit propre' : 'Exclusivité'} — {partenairesUniq.find(en=>en.id===detail.partenaire_exclusif)?.nom || '…'}
                         </span>
                       )}
                     </div>
@@ -564,8 +571,8 @@ export default function AdminProduits() {
                         <div>
                           <select value={v||''} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}>
                             <option value="">Aucune — vendu par tous les partenaires</option>
-                            {entreprisesAll.filter(en=>en.statut==='actif'||en.statut===undefined).map(en=>(
-                              <option key={en.id} value={en.id}>{en.nom}</option>
+                            {partenairesUniq.map(en=>(
+                              <option key={en.id} value={en.id}>{en.nom}{en.ville?` — ${en.ville}`:''}</option>
                             ))}
                           </select>
                           {v && <div style={{ fontSize:11, color:'#C0392B', marginTop:6 }}>🔒 Réservé à ce partenaire : tous ses magasins peuvent le vendre, aucun autre partenaire.</div>}
