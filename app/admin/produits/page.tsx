@@ -1,24 +1,22 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
-import { apiAdmin as api } from '../../../lib/adminApi'
+import { CATEGORIES, fetchCategories } from '../../../lib/supabase'
 
 const BASE = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const PWD  = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123'
 
+const api = async (path: string, opts: any = {}) => {
+  const res = await fetch(`${BASE}/rest/v1/${path}`, {
+    ...opts,
+    headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...(opts.headers||{}) }
+  })
+  if (!res.ok) return null
+  return res.json().catch(() => null)
+}
 
-const CATS = [
-  { id: '', label: 'Toutes', emoji: '🏗️' },
-  { id: 'maconnerie',     label: 'Maçonnerie',  emoji: '🧱' },
-  { id: 'plomberie',      label: 'Plomberie',   emoji: '🔧' },
-  { id: 'electricite',    label: 'Électricité', emoji: '⚡' },
-  { id: 'photovoltaique', label: 'Solaire',     emoji: '☀️' },
-  { id: 'carrelage',      label: 'Carrelage',   emoji: '🪟' },
-  { id: 'menuiserie',     label: 'Menuiserie',  emoji: '🚪' },
-  { id: 'outillage',      label: 'Outillage',   emoji: '🔨' },
-  { id: 'peinture',       label: 'Peinture',    emoji: '🎨' },
-]
+const TOUTES = { id: '', label: 'Toutes', emoji: '🏗️' }
 
 const stockColor = (n: number) => n === 0 ? '#c62828' : n <= 10 ? '#e65100' : '#2e7d32'
 const stockBg    = (n: number) => n === 0 ? '#fce8e8' : n <= 10 ? '#fff3e0' : '#e8f5e9'
@@ -48,28 +46,11 @@ export default function AdminProduits() {
   const [loadingDetail, setLoadingDetail]       = useState(false)
   const [ongletDetail, setOngletDetail]         = useState<'infos'|'stock'|'edit'>('infos')
   const [form, setForm]           = useState<any>({})
-  const [uploading, setUploading] = useState(false)
-
-  const televerserImage = async (file: File) => {
-    if (!file) return
-    if (file.size > 5 * 1024 * 1024) { alert('Image trop lourde (max 5 Mo).'); return }
-    setUploading(true)
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-    const path = `produits/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const res = await fetch(`${BASE}/storage/v1/object/${path}`, {
-      method: 'POST',
-      headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': file.type, 'x-upsert': 'true' },
-      body: file,
-    })
-    if (res.ok) {
-      setForm((p: any) => ({ ...p, image_url: `${BASE}/storage/v1/object/public/${path}` }))
-    } else {
-      alert('Échec du téléversement. Vérifiez que le bucket « produits » existe et est public (voir le SQL fourni).')
-    }
-    setUploading(false)
-  }
   const [saving, setSaving]       = useState(false)
   const [succes, setSucces]       = useState('')
+  const [cats, setCats]           = useState<any[]>([TOUTES, ...CATEGORIES])
+
+  useEffect(() => { fetchCategories().then(list => setCats([TOUTES, ...list])) }, [])
 
   const PER = 25
 
@@ -100,7 +81,7 @@ export default function AdminProduits() {
   const ouvrirDetail = async (p: any) => {
     setDetail(p); setForm({ ...p }); setOngletDetail('infos'); setPartenairesStock([])
     setLoadingDetail(true)
-    const stocks = await api(`stocks_partenaires?produit_id=eq.${p.id}&select=quantite,prix_local,disponible_immediat,partenaires_magasins(nom,ville,quartier,telephone,statut)&order=prix_local.asc`)
+    const stocks = await api(`stocks_partenaires?produit_id=eq.${p.id}&select=quantite,disponible_immediat,partenaires_magasins(nom,ville,quartier,telephone,statut)&order=quantite.desc`)
     setPartenairesStock(Array.isArray(stocks) ? stocks.filter((s:any) => s.partenaires_magasins?.statut === 'actif') : [])
     setLoadingDetail(false)
   }
@@ -197,7 +178,7 @@ export default function AdminProduits() {
             ))}
           </div>
           <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
-            {CATS.map(c => (
+            {cats.map(c => (
               <button key={c.id} onClick={() => setCat(c.id)}
                 style={{ padding:'4px 10px', borderRadius:20, border:`2px solid ${cat===c.id?'#1A2332':'#e0e0e0'}`, background:cat===c.id?'#1A2332':'#fff', color:cat===c.id?'#fff':'#555', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
                 {c.emoji} {c.label}
@@ -221,7 +202,7 @@ export default function AdminProduits() {
               <div style={{ width:40, height:40, borderRadius:8, background:'#f0f0f0', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>
                 {p.image_url
                   ? <img src={p.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>(e.currentTarget.style.display='none')}/>
-                  : CATS.find(c=>c.id===p.categorie)?.emoji||'📦'}
+                  : cats.find(c=>c.id===p.categorie)?.emoji||'📦'}
               </div>
               {/* Infos */}
               <div style={{ flex:1, minWidth:0 }}>
@@ -231,7 +212,7 @@ export default function AdminProduits() {
                   {p.badge === 'nouveau' && <span style={{ background:'#1b5e20', color:'#fff', borderRadius:4, padding:'1px 5px', fontSize:9, fontWeight:800, marginLeft:5, verticalAlign:'middle' }}>NEW</span>}
                 </div>
                 <div style={{ fontSize:11, color:'#aaa', marginTop:1 }}>
-                  {CATS.find(c=>c.id===p.categorie)?.emoji} {p.categorie} · {p.reference}
+                  {cats.find(c=>c.id===p.categorie)?.emoji} {p.categorie} · {p.reference}
                 </div>
               </div>
               {/* Prix */}
@@ -257,7 +238,7 @@ export default function AdminProduits() {
               {produits.map(p => (
                 <div key={p.id} onClick={() => ouvrirDetail(p)} style={{ background:'#fff', border:`2px solid ${detail?.id===p.id?'#C0392B':'#eee'}`, borderRadius:10, overflow:'hidden', cursor:'pointer' }}>
                   <div style={{ height:100, background:'#f5f5f3', display:'flex', alignItems:'center', justifyContent:'center', fontSize:36, position:'relative', overflow:'hidden' }}>
-                    {p.image_url ? <img src={p.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>(e.currentTarget.style.display='none')}/> : CATS.find(c=>c.id===p.categorie)?.emoji||'📦'}
+                    {p.image_url ? <img src={p.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>(e.currentTarget.style.display='none')}/> : cats.find(c=>c.id===p.categorie)?.emoji||'📦'}
                     <span style={{ position:'absolute', bottom:4, right:4, background:stockBg(p.stock), color:stockColor(p.stock), borderRadius:20, padding:'2px 6px', fontSize:10, fontWeight:700 }}>{stockLabel(p.stock)}</span>
                   </div>
                   <div style={{ padding:'8px 10px' }}>
@@ -318,11 +299,11 @@ export default function AdminProduits() {
               <div>
                 <div style={{ display:'flex', gap:16, marginBottom:16, background:'#fff', borderRadius:12, padding:16, border:'1px solid #e8e8e8' }}>
                   <div style={{ width:100, height:100, borderRadius:12, background:'#f0f0f0', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:40 }}>
-                    {detail.image_url ? <img src={detail.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>(e.currentTarget.style.display='none')}/> : CATS.find(c=>c.id===detail.categorie)?.emoji||'📦'}
+                    {detail.image_url ? <img src={detail.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>(e.currentTarget.style.display='none')}/> : cats.find(c=>c.id===detail.categorie)?.emoji||'📦'}
                   </div>
                   <div>
                     <div style={{ fontWeight:800, fontSize:18, color:'#1A2332', marginBottom:4, lineHeight:1.3 }}>{detail.nom}</div>
-                    <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>Réf: {detail.reference} · {CATS.find(c=>c.id===detail.categorie)?.emoji} {detail.categorie}</div>
+                    <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>Réf: {detail.reference} · {cats.find(c=>c.id===detail.categorie)?.emoji} {detail.categorie}</div>
                     <div style={{ display:'flex', alignItems:'baseline', gap:10, marginBottom:6 }}>
                       <span style={{ fontWeight:800, fontSize:22, color:'#C0392B' }}>{Number(detail.prix).toLocaleString('fr-FR')} FCFA</span>
                       <span style={{ fontSize:13, color:'#aaa' }}>/ {detail.unite}</span>
@@ -402,7 +383,7 @@ export default function AdminProduits() {
                     <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                       <thead>
                         <tr style={{ background:'#f9f9f7' }}>
-                          {['Partenaire','Ville','Prix','Téléphone','Stock','Statut'].map(h => (
+                          {['Partenaire','Ville','Téléphone','Stock','Statut'].map(h => (
                             <th key={h} style={{ padding:'9px 14px', textAlign:'left', fontSize:11, fontWeight:700, color:'#888', textTransform:'uppercase', borderBottom:'1px solid #eee' }}>{h}</th>
                           ))}
                         </tr>
@@ -416,7 +397,6 @@ export default function AdminProduits() {
                               onMouseLeave={e => (e.currentTarget.style.background='')}>
                               <td style={{ padding:'9px 14px', borderBottom:'1px solid #f5f5f5', fontWeight:700, color:'#1A2332' }}>{mag?.nom}</td>
                               <td style={{ padding:'9px 14px', borderBottom:'1px solid #f5f5f5', color:'#666' }}>📍 {mag?.ville}{mag?.quartier?` · ${mag.quartier}`:''}</td>
-                              <td style={{ padding:'9px 14px', borderBottom:'1px solid #f5f5f5', fontWeight:700, color:'#C0392B' }}>{s.prix_local ? Number(s.prix_local).toLocaleString('fr-FR')+' FCFA' : '—'}</td>
                               <td style={{ padding:'9px 14px', borderBottom:'1px solid #f5f5f5' }}>
                                 <a href={`tel:${mag?.telephone}`} style={{ color:'#C0392B', textDecoration:'none', fontWeight:600 }}>{mag?.telephone}</a>
                               </td>
@@ -453,6 +433,7 @@ export default function AdminProduits() {
                 {[
                   { k:'nom',         l:'Nom du produit *',    full:true },
                   { k:'categorie',   l:'Catégorie *',          type:'select-cat' },
+                  { k:'sous_categorie', l:'Sous-catégorie',    type:'select-souscat' },
                   { k:'reference',   l:'Référence *' },
                   { k:'prix',        l:'Prix (FCFA) *',        type:'number' },
                   { k:'prix_ancien', l:'Prix barré FCFA',      type:'number' },
@@ -469,9 +450,21 @@ export default function AdminProduits() {
                       {f.type==='textarea' ? (
                         <textarea value={v||''} rows={3} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%', resize:'vertical' }}/>
                       ) : f.type==='select-cat' ? (
-                        <select value={v||''} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}>
-                          {CATS.filter(c=>c.id).map(c=><option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+                        <select value={v||''} onChange={e=>setForm((p:any)=>({...p,categorie:e.target.value,sous_categorie:''}))} style={{ ...S.input, width:'100%' }}>
+                          {cats.filter(c=>c.id).map(c=><option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
                         </select>
+                      ) : f.type==='select-souscat' ? (
+                        (() => {
+                          const sous = cats.find((c:any)=>c.id===form.categorie)?.sous || []
+                          return sous.length ? (
+                            <select value={v||''} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}>
+                              <option value="">— Aucune —</option>
+                              {sous.map((s:string)=><option key={s} value={s}>{s}</option>)}
+                            </select>
+                          ) : (
+                            <input value={v||''} placeholder="Choisissez d'abord une catégorie" onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}/>
+                          )
+                        })()
                       ) : f.type==='select-badge' ? (
                         <select value={v||''} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}>
                           <option value="">Aucun</option>
@@ -481,22 +474,6 @@ export default function AdminProduits() {
                         </select>
                       ) : f.type==='number' ? (
                         <input type="number" value={v??0} onChange={e=>setForm((p:any)=>({...p,[f.k]:Number(e.target.value)}))} style={{ ...S.input, width:'100%' }}/>
-                      ) : f.k==='image_url' ? (
-                        <div>
-                          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-                            <div style={{ width:60, height:60, borderRadius:8, background:'#f3f3f1', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #e8e8e8' }}>
-                              {v ? <img src={v} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/> : <span style={{ fontSize:22 }}>🖼</span>}
-                            </div>
-                            <label style={{ ...S.btn('#1A2332'), cursor:'pointer', opacity:uploading?0.6:1 }}>
-                              {uploading ? '⏳ Téléversement…' : '📁 Choisir une image'}
-                              <input type="file" accept="image/*" disabled={uploading}
-                                onChange={e=>{ const f=e.target.files?.[0]; if(f) televerserImage(f); e.currentTarget.value='' }}
-                                style={{ display:'none' }}/>
-                            </label>
-                            {v && <button type="button" onClick={()=>setForm((p:any)=>({...p,image_url:''}))} style={S.btn('#fff','#b71c1c')}>Retirer</button>}
-                          </div>
-                          <input value={v||''} placeholder="…ou collez une URL d'image" onChange={e=>setForm((p:any)=>({...p,image_url:e.target.value}))} style={{ ...S.input, width:'100%', marginTop:8 }}/>
-                        </div>
                       ) : (
                         <input value={v||''} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%' }}/>
                       )}

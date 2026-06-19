@@ -3,90 +3,22 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ShoppingCart, User, Heart, Search, Menu, X, Phone, ChevronRight, ChevronDown } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { CATEGORIES, fetchCategories } from '../../lib/supabase'
 
-const MENU_CATEGORIES = [
-  {
-    id: 'maconnerie', label: 'Maçonnerie & Gros oeuvre',
-    sous: ['Ciment & Mortier', 'Parpaings & Briques', 'Fer à béton', 'Sable & Gravier', 'Coffrages', 'Enduits & Crépis', 'Colle à carrelage', 'Hourdis & Poutrelles']
-  },
-  {
-    id: 'plomberie', label: 'Plomberie & Sanitaire',
-    sous: ['Tuyaux & Raccords PVC', 'Robinets & Mitigeurs', 'WC & Lavabos', 'Douches & Baignoires', 'Pompes à eau', 'Chauffe-eau', 'Réservoirs & Citernes', 'Accessoires sanitaires']
-  },
-  {
-    id: 'electricite', label: 'Électricité & Éclairage',
-    sous: ['Câbles & Fils électriques', 'Disjoncteurs & Tableaux', 'Prises & Interrupteurs', 'Éclairage LED', 'Gaines & Conduits', 'Onduleurs & Groupes', 'Compteurs & Accessoires', 'Alarmes & Sécurité']
-  },
-  {
-    id: 'photovoltaique', label: 'Énergie Solaire',
-    sous: ['Panneaux Solaires', 'Batteries & Stockage', 'Onduleurs Solaires', 'Régulateurs de charge', 'Kits Solaires Complets', 'Câbles & Connecteurs', 'Structures & Fixations', 'Éclairage Solaire']
-  },
-  {
-    id: 'carrelage', label: 'Carrelage & Revêtement',
-    sous: ['Carrelage Sol intérieur', 'Carrelage Mural', 'Carrelage Extérieur', 'Mosaïque & Décor', 'Parquet & Stratifié', 'Colle & Joint carrelage', 'Plinthes & Profils', 'Pierre Naturelle']
-  },
-  {
-    id: 'menuiserie', label: 'Menuiserie & Bois',
-    sous: ['Portes Intérieures', 'Portes Extérieures', 'Fenêtres & Volets', 'Bois de Construction', 'Contreplaqué & OSB', 'Quincaillerie', 'Parquet Bois massif', 'Escaliers & Rampes']
-  },
-  {
-    id: 'outillage', label: 'Outillage & Machines',
-    sous: ['Perceuses & Visseuses', 'Meuleuses & Scies', 'Bétonnières', 'Niveaux & Mesure', 'Outils Manuels', 'Compresseurs', 'Échafaudages', 'EPI & Sécurité']
-  },
-  {
-    id: 'peinture', label: 'Peinture & Décoration',
-    sous: ['Peinture Intérieure', 'Peinture Extérieure', 'Sous-couches & Primaires', 'Vernis & Lasures', 'Enduits Décoratifs', 'Pinceaux & Rouleaux', 'Bâches & Protection', 'Papier Peint']
-  },
-]
 
 export function Navbar() {
   const [recherche, setRecherche] = useState('')
   const [menuOuvert, setMenuOuvert] = useState(false)
   const [dropdownOuvert, setDropdownOuvert] = useState(false)
-  const [categorieActive, setCategorieActive] = useState(MENU_CATEGORIES[0])
+  const [categorieActive, setCategorieActive] = useState<any>(CATEGORIES[0])
+  const [cats, setCats] = useState<any[]>(CATEGORIES)
+
+  useEffect(() => {
+    fetchCategories().then(list => { setCats(list); if (list[0]) setCategorieActive((prev: any) => list.find((c: any) => c.id === prev?.id) || list[0]) })
+  }, [])
   const [nbArticles, setNbArticles] = useState(0)
-  const [user, setUser] = useState<any>(null)
-  const [displayName, setDisplayName] = useState('')
-  const [compteOuvert, setCompteOuvert] = useState(false)
-  const compteRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const dropdownRef = useRef(null)
-
-  useEffect(() => {
-    let actif = true
-    const charger = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!actif) return
-      setUser(user)
-      if (user) {
-        const { data: prof } = await supabase.from('profils').select('nom').eq('id', user.id).maybeSingle()
-        setDisplayName(prof?.nom || user.user_metadata?.full_name || user.user_metadata?.name || (user.email ? user.email.split('@')[0] : 'Mon compte'))
-      } else {
-        setDisplayName('')
-      }
-    }
-    charger()
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user || null)
-      if (session?.user) charger(); else setDisplayName('')
-    })
-    return () => { actif = false; sub.subscription.unsubscribe() }
-  }, [])
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (compteRef.current && !compteRef.current.contains(e.target as Node)) setCompteOuvert(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [])
-
-  const deconnexion = async () => {
-    await supabase.auth.signOut()
-    setCompteOuvert(false)
-    router.push('/')
-  }
 
   useEffect(() => {
     const update = () => {
@@ -152,7 +84,7 @@ export function Navbar() {
               <div className="absolute top-full left-0 mt-1 flex shadow-2xl border border-gray-200 rounded-lg z-50 overflow-hidden bg-white" style={{width: '680px'}}>
                 {/* Colonne gauche */}
                 <div className="w-64 border-r border-gray-100 overflow-y-auto" style={{maxHeight: '500px'}}>
-                  {MENU_CATEGORIES.map((cat) => (
+                  {cats.map((cat) => (
                     <button
                       key={cat.id}
                       onMouseEnter={() => setCategorieActive(cat)}
@@ -174,10 +106,10 @@ export function Navbar() {
                     {categorieActive.label}
                   </h3>
                   <div className="grid grid-cols-2 gap-1">
-                    {categorieActive.sous.map((sous) => (
+                    {(categorieActive.sous || []).map((sous: string) => (
                       <Link
                         key={sous}
-                        href={`/produits?categorie=${categorieActive.id}`}
+                        href={`/produits?categorie=${categorieActive.id}&sousCategorie=${encodeURIComponent(sous)}`}
                         onClick={() => setDropdownOuvert(false)}
                         className="flex items-center gap-2 py-2 px-2 text-sm text-gray-600 hover:text-brique rounded hover:bg-gray-50 transition-colors">
                         <ChevronRight size={12} className="text-gray-300 shrink-0"/>
@@ -212,31 +144,9 @@ export function Navbar() {
           </form>
 
           <div className="flex items-center gap-3 ml-auto">
-            {user ? (
-              <div ref={compteRef} className="hidden md:block relative">
-                <button onClick={() => setCompteOuvert(o => !o)} className="flex flex-col items-center text-xs text-acier hover:text-brique">
-                  <User size={20}/>
-                  <span className="max-w-[90px] truncate">{displayName || 'Mon compte'}</span>
-                </button>
-                {compteOuvert && (
-                  <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-50">
-                    <div className="px-4 py-2 border-b border-gray-50">
-                      <div className="text-xs text-gray-400">Connecté en tant que</div>
-                      <div className="text-sm font-semibold text-acier truncate">{displayName}</div>
-                    </div>
-                    <Link href="/compte/dashboard" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mon compte</Link>
-                    <Link href="/compte/commandes" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mes commandes</Link>
-                    <Link href="/compte/favoris" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mes favoris</Link>
-                    <Link href="/compte/profil" onClick={() => setCompteOuvert(false)} className="block px-4 py-2.5 text-sm text-acier hover:bg-beton">Mon profil</Link>
-                    <button onClick={deconnexion} className="block w-full text-left px-4 py-2.5 text-sm text-brique hover:bg-beton border-t border-gray-50">Déconnexion</button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Link href="/compte" className="hidden md:flex flex-col items-center text-xs text-acier hover:text-brique">
-                <User size={20}/> Compte
-              </Link>
-            )}
+            <Link href="/compte" className="hidden md:flex flex-col items-center text-xs text-acier hover:text-brique">
+              <User size={20}/> Compte
+            </Link>
             <Link href="/panier" className="flex flex-col items-center text-xs text-brique relative">
               <ShoppingCart size={22}/>
               {nbArticles > 0 && (
@@ -268,7 +178,7 @@ export function Navbar() {
 
       {menuOuvert && (
         <div className="md:hidden bg-white border-t shadow-lg overflow-y-auto" style={{maxHeight: '70vh'}}>
-          {MENU_CATEGORIES.map(c => (
+          {cats.map(c => (
             <div key={c.id}>
               <Link href={`/produits?categorie=${c.id}`}
                 onClick={() => setMenuOuvert(false)}
@@ -276,9 +186,9 @@ export function Navbar() {
                 {c.label}
                 <ChevronRight size={14} className="text-gray-400"/>
               </Link>
-              {c.sous.map(s => (
+              {(c.sous || []).map((s: string) => (
                 <Link key={s}
-                  href={`/produits?categorie=${c.id}`}
+                  href={`/produits?categorie=${c.id}&sousCategorie=${encodeURIComponent(s)}`}
                   onClick={() => setMenuOuvert(false)}
                   className="flex items-center gap-2 pl-8 pr-4 py-2 text-xs text-gray-500 hover:text-brique border-b border-gray-50">
                   <ChevronRight size={10} className="shrink-0"/> {s}
