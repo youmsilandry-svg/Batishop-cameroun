@@ -42,6 +42,7 @@ export default function EspacePartenaire() {
   const [modifPromo, setModifPromo] = useState<Record<string, number | null>>({})
   const [stocksParBoutique, setStocksParBoutique] = useState<Record<string, any[]>>({})
   const [vueStock, setVueStock] = useState<'ville' | 'magasin'>('ville')
+  const [vueCmd, setVueCmd] = useState<'ville' | 'magasin'>('ville')
   const [prixMoyens, setPrixMoyens] = useState<Record<string, { prix_moyen: number; nb_partenaires: number }>>({})
   const [rechercheProd, setRechercheProd] = useState('')
   const [modeAjout, setModeAjout] = useState(false)
@@ -94,9 +95,10 @@ export default function EspacePartenaire() {
       setStocksParBoutique(parB)
       setStocks(parB[m.id] || [])
 
-      // Charger les commandes (sous-commandes) de la boutique
-      const selC = encodeURIComponent('*,commandes(client_nom,client_telephone,client_adresse,client_ville,client_latitude,client_longitude),commande_lignes(*)')
-      const cmds = await apiAuth(`sous_commandes?point_vente_id=eq.${m.id}&select=${selC}&order=created_at.desc`, t!)
+      // Charger les commandes (sous-commandes) de toute la ville par défaut
+      const idsVille = mag.filter((b: any) => b.ville === m.ville).map((b: any) => b.id)
+      const selC = encodeURIComponent('*,partenaires_magasins(nom,ville,quartier),commandes(client_nom,client_telephone,client_adresse,client_ville,client_latitude,client_longitude),commande_lignes(*)')
+      const cmds = idsVille.length ? await apiAuth(`sous_commandes?point_vente_id=in.(${idsVille.join(',')})&select=${selC}&order=created_at.desc`, t!) : []
       setCommandes(Array.isArray(cmds) ? cmds : [])
 
       // Charger les prix moyens du site (tous partenaires confondus)
@@ -120,17 +122,19 @@ export default function EspacePartenaire() {
   const choisirBoutique = async (b: any) => {
     setMagasin(b)
     setForm({ nom: b.nom, telephone: b.telephone, adresse: b.adresse, quartier: b.quartier, horaires: b.horaires, description: b.description, latitude: b.latitude ?? '', longitude: b.longitude ?? '' })
-    setModifStocks({}); setModifPrix({}); setModifPromo({}); setModeAjout(false); setVueStock('ville')
+    setModifStocks({}); setModifPrix({}); setModifPromo({}); setModeAjout(false); setVueStock('ville'); setVueCmd('ville')
     const stks = await apiAuth(`stocks_partenaires?partenaire_id=eq.${b.id}&select=*`, token)
     setStocksParBoutique(prev => ({ ...prev, [b.id]: stks || [] }))
     setStocks(stks || [])
-    chargerCommandes(b.id)
+    chargerCommandes('ville', b)
   }
 
-  const chargerCommandes = async (bid: string) => {
+  const chargerCommandes = async (vue: 'ville' | 'magasin' = vueCmd, mag: any = magasin) => {
+    if (!mag) return
     setLoadingCmd(true)
-    const sel = encodeURIComponent('*,commandes(client_nom,client_telephone,client_adresse,client_ville,client_latitude,client_longitude),commande_lignes(*)')
-    const data = await apiAuth(`sous_commandes?point_vente_id=eq.${bid}&select=${sel}&order=created_at.desc`, token)
+    const ids = vue === 'ville' ? boutiques.filter(b => b.ville === mag.ville).map(b => b.id) : [mag.id]
+    const sel = encodeURIComponent('*,partenaires_magasins(nom,ville,quartier),commandes(client_nom,client_telephone,client_adresse,client_ville,client_latitude,client_longitude),commande_lignes(*)')
+    const data = ids.length ? await apiAuth(`sous_commandes?point_vente_id=in.(${ids.join(',')})&select=${sel}&order=created_at.desc`, token) : []
     setCommandes(Array.isArray(data) ? data : [])
     setLoadingCmd(false)
   }
@@ -417,12 +421,21 @@ export default function EspacePartenaire() {
               <div style={S.stat}><div style={{ fontWeight: 800, fontSize: 22, color: '#1565c0' }}>{fmtFcfa(caEnCours)}</div><div style={{ fontSize: 12, color: '#888' }}>En cours</div></div>
             </div>
 
+            {/* Vue : toute la ville ou un magasin précis */}
+            {boutiquesVille.length > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>Vue :</span>
+                <button onClick={() => { setVueCmd('ville'); chargerCommandes('ville', magasin) }} style={S.tab(vueCmd === 'ville')}>🏙️ Toute la ville{magasin ? ` (${magasin.ville})` : ''}</button>
+                <button onClick={() => { setVueCmd('magasin'); chargerCommandes('magasin', magasin) }} style={S.tab(vueCmd === 'magasin')}>🏪 Ce magasin{magasin ? ` (${magasin.quartier})` : ''}</button>
+              </div>
+            )}
+
             {loadingCmd ? (
               <div style={{ ...S.card, textAlign: 'center', color: '#999' }}>Chargement…</div>
             ) : commandes.length === 0 ? (
               <div style={{ ...S.card, textAlign: 'center', color: '#999', padding: 40 }}>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>🧾</div>
-                <div style={{ fontWeight: 700, color: '#666' }}>Aucune commande pour cette boutique</div>
+                <div style={{ fontWeight: 700, color: '#666' }}>Aucune commande{vueCmd === 'ville' ? ' dans cette ville' : ' pour ce magasin'}</div>
                 <div style={{ fontSize: 13, marginTop: 4 }}>Les commandes des clients apparaîtront ici dès qu'elles arrivent.</div>
               </div>
             ) : (
@@ -438,6 +451,9 @@ export default function EspacePartenaire() {
                           {sc.mode === 'livraison' ? '🚚 Livraison' : '📦 Retrait'}
                         </span>
                         <span style={{ background: st.bg, color: st.c, borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>{st.label}</span>
+                        {vueCmd === 'ville' && sc.partenaires_magasins && (
+                          <span style={{ background: '#fff3e0', color: '#e65100', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>🏪 {sc.partenaires_magasins.quartier || sc.partenaires_magasins.nom}</span>
+                        )}
                         <span style={{ marginLeft: 'auto', fontWeight: 800, color: '#1A2332' }}>{fmtFcfa(sc.total)}</span>
                       </div>
 
