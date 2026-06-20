@@ -44,10 +44,10 @@ export default function PartenairesPage() {
             fixez vos prix et touchez de nouveaux clients dans votre ville — gratuitement.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
-            <a href={`mailto:${SITE.emailPartenaires}?subject=${SUJET}&body=${CORPS}`}
+            <Link href="/partenaires/postuler"
               className="inline-flex items-center gap-2 bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded-lg transition-colors">
               Rejoindre le réseau <ArrowRight size={18} />
-            </a>
+            </Link>
             <Link href="/partenaires/connexion"
               className="inline-flex items-center gap-2 border border-white/30 hover:border-white text-white font-semibold px-6 py-3 rounded-lg transition-colors">
               J'ai déjà un compte
@@ -106,10 +106,10 @@ export default function PartenairesPage() {
           Envoyez-nous votre candidature dès aujourd'hui. C'est gratuit et sans engagement.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-          <a href={`mailto:${SITE.emailPartenaires}?subject=${SUJET}&body=${CORPS}`}
+          <Link href="/partenaires/postuler"
             className="inline-flex items-center gap-2 bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded-lg transition-colors">
-            <Mail size={18} /> Postuler par email
-          </a>
+            Remplir le formulaire <ArrowRight size={18} />
+          </Link>
           <a href={`tel:${SITE.telLien}`}
             className="inline-flex items-center gap-2 border border-gray-300 hover:border-brique hover:text-brique text-gray-600 font-semibold px-6 py-3 rounded-lg transition-colors">
             <Phone size={18} /> Nous appeler

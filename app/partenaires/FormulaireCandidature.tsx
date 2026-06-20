@@ -36,6 +36,16 @@ export default function FormulaireCandidature() {
         description, statut: 'en_attente', actif: false,
       })
       if (e2) throw e2
+
+      // Emails : notification à BatiShop + confirmation au candidat (best-effort)
+      try {
+        await fetch('/api/candidature-partenaire', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nom: f.nom, email: f.email, telephone: f.telephone, ville: f.ville, quartier: f.quartier, type, metier: f.metier, message: f.message }),
+        })
+      } catch { /* l'email ne doit pas bloquer la candidature */ }
+
       setOk(true)
     } catch (er) {
       console.error(er)
