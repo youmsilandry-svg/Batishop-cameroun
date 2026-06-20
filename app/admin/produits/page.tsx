@@ -141,22 +141,47 @@ export default function AdminProduits() {
 
   const sauvegarder = async () => {
     setSaving(true)
-    const { id, created_at, search_vector, _exclScope, _exclVille, ...rest } = form
+    const { id, created_at, search_vector, _exclScope, _exclVille, _new, ...rest } = form
     const partner = rest.partenaire_exclusif || ''
     const scope = _exclScope || 'toutes'
     rest.partenaire_exclusif = (partner && scope === 'toutes') ? partner : null
     Object.keys(rest).forEach(k => { if (k.startsWith('_')) delete (rest as any)[k] })
-    await api(`produits?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(rest) })
-    // Exclusivité par ville : on remplace par la sélection actuelle
-    await api(`exclusivites_ville?produit_id=eq.${id}`, { method: 'DELETE' })
-    if (partner && scope === 'ville' && _exclVille) {
-      await api('exclusivites_ville', { method: 'POST', body: JSON.stringify({ produit_id: id, ville: _exclVille, partenaire_id: partner, actif: true }) })
+
+    const estNouveau = !!detail?._new || !id
+    let prodId = id
+
+    if (estNouveau) {
+      // CRÉATION
+      const cree = await api('produits', { method: 'POST', body: JSON.stringify(rest) })
+      const row = Array.isArray(cree) ? cree[0] : cree
+      if (!row || !row.id) {
+        setSaving(false)
+        alert("Échec de la création. Vérifie les champs obligatoires (nom, catégorie, référence, prix, stock) et que ton email est bien dans la table admins.")
+        return
+      }
+      prodId = row.id
+    } else {
+      // MODIFICATION
+      await api(`produits?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(rest) })
     }
-    setProduits(prev => prev.map(x => x.id === id ? { ...x, ...rest } : x))
-    setDetail((d: any) => ({ ...d, ...rest }))
+
+    // Exclusivité par ville : on remplace par la sélection actuelle
+    await api(`exclusivites_ville?produit_id=eq.${prodId}`, { method: 'DELETE' })
+    if (partner && scope === 'ville' && _exclVille) {
+      await api('exclusivites_ville', { method: 'POST', body: JSON.stringify({ produit_id: prodId, ville: _exclVille, partenaire_id: partner, actif: true }) })
+    }
+
     setSaving(false); setOngletDetail('infos')
-    setSucces('✓ Produit modifié')
+    setSucces(estNouveau ? '✓ Produit créé' : '✓ Produit modifié')
     setTimeout(() => setSucces(''), 2000)
+
+    if (estNouveau) {
+      setDetail(null)
+      charger(page)
+    } else {
+      setProduits(prev => prev.map(x => x.id === id ? { ...x, ...rest } : x))
+      setDetail((d: any) => ({ ...d, ...rest }))
+    }
   }
 
   const toggleActif = async (p: any) => {
