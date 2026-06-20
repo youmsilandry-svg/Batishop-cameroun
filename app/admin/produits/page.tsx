@@ -386,14 +386,18 @@ export default function AdminProduits() {
               </div>
               {/* Prix */}
               <div style={{ textAlign:'right', flexShrink:0 }}>
-                <div style={{ fontWeight:800, color:'#C0392B', fontSize:13 }}>{Number(p.prix).toLocaleString('fr-FR')} F</div>
-                {p.prix_ancien && <div style={{ fontSize:10, color:'#bbb', textDecoration:'line-through' }}>{Number(p.prix_ancien).toLocaleString('fr-FR')}</div>}
+                <div style={{ fontWeight:800, color:'#C0392B', fontSize:13 }}>{p.prix > 0 ? Number(p.prix).toLocaleString('fr-FR') + ' F' : '—'}</div>
+                {p.prix > 0 && p.prix_ancien ? <div style={{ fontSize:10, color:'#bbb', textDecoration:'line-through' }}>{Number(p.prix_ancien).toLocaleString('fr-FR')}</div> : null}
               </div>
               {/* Stock BatiShop */}
               <div style={{ flexShrink:0 }}>
-                <span style={{ background:stockBg(p.stock), color:stockColor(p.stock), borderRadius:20, padding:'3px 8px', fontSize:11, fontWeight:700, whiteSpace:'nowrap' }}>
-                  {stockLabel(p.stock)}
-                </span>
+                {p.stock > 0 ? (
+                  <span style={{ background:stockBg(p.stock), color:stockColor(p.stock), borderRadius:20, padding:'3px 8px', fontSize:11, fontWeight:700, whiteSpace:'nowrap' }}>
+                    {stockLabel(p.stock)}
+                  </span>
+                ) : (
+                  <span style={{ background:'#f0f0f0', color:'#999', borderRadius:20, padding:'3px 8px', fontSize:11, fontWeight:700 }}>—</span>
+                )}
                 <div style={{ fontSize:10, color:'#bbb', textAlign:'center', marginTop:1 }}>BatiShop</div>
               </div>
               {/* Actif toggle */}
