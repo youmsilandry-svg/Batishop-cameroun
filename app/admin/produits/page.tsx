@@ -652,7 +652,7 @@ export default function AdminProduits() {
                   { k:'description', l:'Description',          full:true, type:'textarea' },
                   { k:'partenaire_exclusif', l:'🔒 Exclusivité — réservé à un partenaire', type:'select-exclusif', full:true },
                   { k:'produit_partenaire', l:'Produit propre à ce partenaire (hors catalogue central)', type:'checkbox', full:true },
-                ].filter(f => !(detail?._new && ['prix','prix_ancien','stock'].includes(f.k))).map(f => {
+                ].filter(f => !['prix','prix_ancien','stock'].includes(f.k)).map(f => {
                   const v = form[f.k]
                   return (
                     <div key={f.k} style={{ gridColumn: f.full ? '1/-1' : 'span 1', background:'#fff', borderRadius:10, padding:12, border:'1px solid #e8e8e8' }}>
