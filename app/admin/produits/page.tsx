@@ -58,6 +58,7 @@ export default function AdminProduits() {
   const [stockFPart, setStockFPart]   = useState('')
   const [form, setForm]           = useState<any>({})
   const [saving, setSaving]       = useState(false)
+  const [uploadImg, setUploadImg] = useState(false)
   const [succes, setSucces]       = useState('')
   const [email, setEmail]         = useState('')
   const [authErr, setAuthErr]     = useState('')
@@ -122,6 +123,20 @@ export default function AdminProduits() {
     if (!partner && exclArr.length) { scope = 'ville'; partner = exclArr[0].partenaire_id; ville = exclArr[0].ville }
     setForm((f: any) => ({ ...f, partenaire_exclusif: partner, _exclScope: scope, _exclVille: ville }))
     setLoadingDetail(false)
+  }
+
+  // Téléverse une photo depuis l'ordinateur vers Supabase Storage et remplit l'URL
+  const uploadImage = async (file: File) => {
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { alert('Image trop lourde (max 5 Mo).'); return }
+    setUploadImg(true)
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const nom = `produit-${Date.now()}-${Math.floor(Math.random() * 1000)}.${ext}`
+    const { error } = await supabase.storage.from('produits').upload(nom, file, { upsert: false, contentType: file.type })
+    if (error) { setUploadImg(false); alert("Échec de l'envoi : " + error.message); return }
+    const { data } = supabase.storage.from('produits').getPublicUrl(nom)
+    setForm((p: any) => ({ ...p, image_url: data.publicUrl }))
+    setUploadImg(false)
   }
 
   const sauvegarder = async () => {
@@ -594,7 +609,20 @@ export default function AdminProduits() {
                   return (
                     <div key={f.k} style={{ gridColumn: f.full ? '1/-1' : 'span 1', background:'#fff', borderRadius:10, padding:12, border:'1px solid #e8e8e8' }}>
                       <label style={{ fontSize:11, fontWeight:700, color:'#888', textTransform:'uppercase', display:'block', marginBottom:6 }}>{f.l}</label>
-                      {f.type==='textarea' ? (
+                      {f.k==='image_url' ? (
+                        <div>
+                          <input value={v||''} placeholder="Collez une URL, ou téléversez une photo →" onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%', marginBottom:8 }}/>
+                          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+                            <label style={{ ...S.btn('#1A2332'), cursor: uploadImg?'wait':'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
+                              {uploadImg ? 'Envoi…' : '📷 Téléverser une photo'}
+                              <input type="file" accept="image/*" disabled={uploadImg}
+                                onChange={e=>{ const f0=e.target.files?.[0]; if(f0) uploadImage(f0); e.currentTarget.value='' }}
+                                style={{ display:'none' }}/>
+                            </label>
+                            {v && <img src={v} alt="" style={{ width:54, height:54, objectFit:'cover', borderRadius:8, border:'1px solid #e8e8e8' }} onError={e=>(e.currentTarget.style.display='none')}/>}
+                          </div>
+                        </div>
+                      ) : f.type==='textarea' ? (
                         <textarea value={v||''} rows={3} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%', resize:'vertical' }}/>
                       ) : f.type==='select-cat' ? (
                         <select value={v||''} onChange={e=>setForm((p:any)=>({...p,categorie:e.target.value,sous_categorie:''}))} style={{ ...S.input, width:'100%' }}>
