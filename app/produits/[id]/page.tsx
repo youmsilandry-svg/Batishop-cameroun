@@ -6,6 +6,32 @@ import { supabase, formatPrix, CATEGORIES } from '../../../lib/supabase'
 import { OuTrouver } from '../../../components/produits/OuTrouver'
 import { SITE } from '../../../lib/config'
 
+// Affiche une description en respectant les retours à la ligne et les listes (lignes en "- ")
+function DescriptionFormatee({ texte }: { texte: string }) {
+  const lignes = (texte || '').split('\n')
+  const blocs: any[] = []
+  let puces: string[] = []
+  const vider = (k: string) => {
+    if (puces.length) {
+      blocs.push(
+        <ul key={'ul' + k} className="list-disc pl-5 space-y-1 text-gray-600 mb-3">
+          {puces.map((p, i) => <li key={i}>{p}</li>)}
+        </ul>
+      )
+      puces = []
+    }
+  }
+  lignes.forEach((brut, i) => {
+    const ligne = brut.trim()
+    if (!ligne) { vider('e' + i); return }
+    if (/^[-•*]\s+/.test(ligne)) { puces.push(ligne.replace(/^[-•*]\s+/, '')); return }
+    vider('p' + i)
+    blocs.push(<p key={'p' + i} className="text-gray-600 leading-relaxed mb-3">{ligne}</p>)
+  })
+  vider('fin')
+  return <>{blocs}</>
+}
+
 export default function PageDetailProduit() {
   const { id } = useParams()
   const router = useRouter()
@@ -233,9 +259,7 @@ export default function PageDetailProduit() {
         <div className="p-6">
           {onglet === 'description' && (
             <div>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                {produit.description || `${produit.nom} — produit de qualité professionnelle disponible chez BatiShop Cameroun.`}
-              </p>
+              <DescriptionFormatee texte={produit.description || `${produit.nom} — produit de qualité professionnelle disponible chez BatiShop Cameroun.`} />
               <div className="grid md:grid-cols-2 gap-4 mt-4">
                 {[
                   { titre: 'Points forts', items: ['Qualité professionnelle', 'Livraison rapide', 'Prix compétitif', 'Stock disponible'] },
