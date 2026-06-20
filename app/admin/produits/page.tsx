@@ -147,6 +147,15 @@ export default function AdminProduits() {
     rest.partenaire_exclusif = (partner && scope === 'toutes') ? partner : null
     Object.keys(rest).forEach(k => { if (k.startsWith('_')) delete (rest as any)[k] })
 
+    // Validation + référence auto si vide
+    if (!rest.nom || !String(rest.nom).trim()) { setSaving(false); alert('Le nom du produit est obligatoire.'); return }
+    if (!rest.categorie) { setSaving(false); alert('La catégorie est obligatoire.'); return }
+    if (!rest.reference || !String(rest.reference).trim()) {
+      rest.reference = 'REF-' + Date.now().toString(36).toUpperCase()
+    }
+    if (rest.prix == null || rest.prix === '') rest.prix = 0
+    if (rest.stock == null || rest.stock === '') rest.stock = 0
+
     const estNouveau = !!detail?._new || !id
     let prodId = id
 
