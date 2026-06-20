@@ -7,6 +7,14 @@ const BASE = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 // Récupère le jeton de l'admin connecté (sinon clé publique pour les lectures)
+// Génère une référence produit lisible : BS-XXXXXX (sans I, O, 0, 1)
+const genRef = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let s = ''
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  return 'BS-' + s
+}
+
 const authToken = async () => {
   try {
     const { data } = await supabase.auth.getSession()
@@ -151,7 +159,7 @@ export default function AdminProduits() {
     if (!rest.nom || !String(rest.nom).trim()) { setSaving(false); alert('Le nom du produit est obligatoire.'); return }
     if (!rest.categorie) { setSaving(false); alert('La catégorie est obligatoire.'); return }
     if (!rest.reference || !String(rest.reference).trim()) {
-      rest.reference = 'REF-' + Date.now().toString(36).toUpperCase()
+      rest.reference = genRef()
     }
     if (rest.prix == null || rest.prix === '') rest.prix = 0
     if (rest.stock == null || rest.stock === '') rest.stock = 0
@@ -434,8 +442,10 @@ export default function AdminProduits() {
               </div>
               {!detail._new && (
                 <div style={{ display:'flex', gap:6 }}>
-                  <button style={S.btn('#f0f0f0','#555')} onClick={() => toggleActif(detail)}>
-                    {detail.actif ? 'Masquer' : 'Rendre visible'}
+                  <button
+                    style={S.btn(detail.actif ? '#fce8e8' : '#e8f5e9', detail.actif ? '#c62828' : '#2e7d32')}
+                    onClick={() => toggleActif(detail)}>
+                    {detail.actif ? '🚫 Désactiver' : '✓ Activer'}
                   </button>
                   <button style={S.btn('#fce8e8','#c62828')} onClick={() => supprimer(detail.id)}>🗑 Supprimer</button>
                 </div>
@@ -628,7 +638,7 @@ export default function AdminProduits() {
                   { k:'nom',         l:'Nom du produit *',    full:true },
                   { k:'categorie',   l:'Catégorie *',          type:'select-cat' },
                   { k:'sous_categorie', l:'Sous-catégorie',    type:'select-souscat' },
-                  { k:'reference',   l:'Référence *' },
+                  { k:'reference',   l:'Référence (auto si vide)' },
                   { k:'prix',        l:'Prix (FCFA) *',        type:'number' },
                   { k:'prix_ancien', l:'Prix barré FCFA',      type:'number' },
                   { k:'stock',       l:'Stock BatiShop *',     type:'number' },
