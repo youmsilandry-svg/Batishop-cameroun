@@ -151,14 +151,22 @@ export default function AdminProduits() {
     let prodId = id
 
     if (estNouveau) {
-      // CRÉATION
-      const cree = await api('produits', { method: 'POST', body: JSON.stringify(rest) })
-      const row = Array.isArray(cree) ? cree[0] : cree
-      if (!row || !row.id) {
+      // CRÉATION (avec remontée de l'erreur exacte)
+      const token = await authToken()
+      const resp = await fetch(`${BASE}/rest/v1/produits`, {
+        method: 'POST',
+        headers: { apikey: KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify({ ...rest, actif: true }),
+      })
+      if (!resp.ok) {
+        const detailErr = await resp.text()
         setSaving(false)
-        alert("Échec de la création. Vérifie les champs obligatoires (nom, catégorie, référence, prix, stock) et que ton email est bien dans la table admins.")
+        alert(`Création refusée (code ${resp.status}).\n\n${detailErr}`)
         return
       }
+      const cree = await resp.json().catch(() => null)
+      const row = Array.isArray(cree) ? cree[0] : cree
+      if (!row || !row.id) { setSaving(false); alert('Création : réponse inattendue du serveur.'); return }
       prodId = row.id
     } else {
       // MODIFICATION
@@ -604,16 +612,7 @@ export default function AdminProduits() {
               </div>
             )}
             {(ongletDetail === 'edit' || detail._new) && (
-              <form onSubmit={e => { e.preventDefault(); detail._new ? (async()=>{
-                const {actif, _exclScope, _exclVille, ...rest}=form
-                const partner = rest.partenaire_exclusif || ''
-                rest.partenaire_exclusif = (partner && (_exclScope||'toutes') === 'toutes') ? partner : null
-                Object.keys(rest).forEach(k => { if (k.startsWith('_')) delete (rest as any)[k] })
-                await api('produits', { method:'POST', body:JSON.stringify({...rest, actif:true}) })
-                setDetail(null); charger(page)
-                setSucces('✓ Produit créé')
-                setTimeout(()=>setSucces(''),2000)
-              })() : sauvegarder() }}
+              <form onSubmit={e => { e.preventDefault(); sauvegarder() }}
                 style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 {[
                   { k:'nom',         l:'Nom du produit *',    full:true },
