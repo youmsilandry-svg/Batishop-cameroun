@@ -161,40 +161,43 @@ export default function PageDetailProduit() {
           {/* PRIX */}
           <div className="bg-beton rounded-xl p-4 mb-4">
             <div className="flex items-baseline gap-3 mb-1">
-              <span className="font-condensed font-bold text-3xl text-brique">{formatPrix(produit.prix)}</span>
-              <span className="text-sm text-gray-500">/ {produit.unite}</span>
+              {produit.prix > 0 ? (
+                <>
+                  <span className="font-condensed font-bold text-3xl text-brique">{formatPrix(produit.prix)}</span>
+                  <span className="text-sm text-gray-500">/ {produit.unite}</span>
+                </>
+              ) : (
+                <span className="font-condensed font-bold text-2xl text-brique">Prix selon le point de vente</span>
+              )}
             </div>
-            {produit.prix_ancien && (
+            {produit.prix > 0 && produit.prix_ancien ? (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
                 <span className="text-sm font-bold text-green-600">Économisez {formatPrix(produit.prix_ancien - produit.prix)}</span>
               </div>
-            )}
-            <p className="text-xs text-gray-500 mt-1">Prix TTC — Livraison calculée à la commande</p>
+            ) : null}
+            <p className="text-xs text-gray-500 mt-1">{produit.prix > 0 ? 'Prix TTC — Livraison calculée à la commande' : 'Voir les prix par magasin ci-dessous'}</p>
           </div>
 
           {/* Stock */}
           <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg ${
             (produit.stock + stockPartenaires) > 10 ? 'bg-green-50 text-green-700' :
             (produit.stock + stockPartenaires) > 0 ? 'bg-amber-50 text-amber-700' :
-            'bg-red-50 text-red-700'}`}>
+            'bg-gray-50 text-gray-600'}`}>
             <Check size={16}/>
             <span className="text-sm font-medium">
               {(produit.stock + stockPartenaires) > 10 ? `En stock — ${produit.stock + stockPartenaires} disponibles` :
                (produit.stock + stockPartenaires) > 0 ? `Stock limité — Plus que ${produit.stock + stockPartenaires} en stock !` :
-               'Rupture de stock'}
+               'Disponibilité selon le point de vente'}
             </span>
           </div>
 
           {/* Bouton Choisir où acheter — scroll vers la section "Où trouver" */}
           <button
             onClick={() => document.getElementById('ou-trouver')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            disabled={(produit.stock + stockPartenaires) === 0}
-            className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-lg font-bold text-base transition-colors ${
-              (produit.stock + stockPartenaires) === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' :
-              'bg-brique text-white hover:bg-brique-dark'}`}>
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-lg font-bold text-base transition-colors bg-brique text-white hover:bg-brique-dark">
             <MapPin size={20}/>
-            {(produit.stock + stockPartenaires) === 0 ? 'Rupture de stock' : 'Choisir où acheter'}
+            Choisir où acheter
           </button>
 
           {/* Contact */}
@@ -261,7 +264,7 @@ export default function PageDetailProduit() {
                   ['Catégorie', cat?.label],
                   ['Unité de vente', produit.unite],
                   ['Stock disponible', `${produit.stock + stockPartenaires} unités`],
-                  ['Prix unitaire', formatPrix(produit.prix)],
+                  ['Prix unitaire', produit.prix > 0 ? formatPrix(produit.prix) : 'Selon le point de vente'],
                   ['Garantie', '6 mois'],
                 ].map(([label, val], i) => (
                   <tr key={label} className={i % 2 === 0 ? 'bg-beton' : 'bg-white'}>

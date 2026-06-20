@@ -43,11 +43,6 @@ export function CarteProduit({ produit }: { produit: Produit }) {
             Plus que {produit.stock} en stock
           </div>
         )}
-        {produit.stock === 0 && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-t-lg">
-            <span className="bg-white text-acier text-xs font-bold px-3 py-1 rounded">Rupture de stock</span>
-          </div>
-        )}
       </div>
 
       {/* Contenu */}
@@ -62,11 +57,17 @@ export function CarteProduit({ produit }: { produit: Produit }) {
         <p className="text-xs text-gray-400 mb-2">Réf: {produit.reference}</p>
 
         <div className="flex items-baseline gap-2 mb-2">
-          <span className="font-condensed font-bold text-base text-brique">{formatPrix(produit.prix)}</span>
-          {produit.prix_ancien && (
-            <span className="text-xs text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
+          {produit.prix > 0 ? (
+            <>
+              <span className="font-condensed font-bold text-base text-brique">{formatPrix(produit.prix)}</span>
+              {produit.prix_ancien ? (
+                <span className="text-xs text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
+              ) : null}
+              <span className="text-xs text-gray-400">/{produit.unite}</span>
+            </>
+          ) : (
+            <span className="font-condensed font-bold text-base text-brique">Voir les prix</span>
           )}
-          <span className="text-xs text-gray-400">/{produit.unite}</span>
         </div>
 
         <div className="w-full text-center py-2 rounded text-xs font-semibold bg-acier text-white group-hover:bg-brique transition-colors">
