@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Store, TrendingUp, Tag, Package, Users, MapPin, ArrowRight, Phone, Mail } from 'lucide-react'
 import { SITE } from '../../lib/config'
+import FormulaireCandidature from './FormulaireCandidature'
 
 export const metadata = {
   title: 'Devenir partenaire — BatiShop Cameroun',
@@ -44,10 +45,10 @@ export default function PartenairesPage() {
             fixez vos prix et touchez de nouveaux clients dans votre ville — gratuitement.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
-            <Link href="/partenaires/postuler"
+            <a href="#postuler"
               className="inline-flex items-center gap-2 bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded-lg transition-colors">
               Rejoindre le réseau <ArrowRight size={18} />
-            </Link>
+            </a>
             <Link href="/partenaires/connexion"
               className="inline-flex items-center gap-2 border border-white/30 hover:border-white text-white font-semibold px-6 py-3 rounded-lg transition-colors">
               J'ai déjà un compte
@@ -97,30 +98,31 @@ export default function PartenairesPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <MapPin size={28} className="text-brique mx-auto mb-3" />
-        <h2 className="font-condensed font-bold text-2xl text-acier mb-2">
-          Prêt à développer votre activité ?
-        </h2>
-        <p className="text-gray-500 mb-8">
-          Envoyez-nous votre candidature dès aujourd'hui. C'est gratuit et sans engagement.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-          <Link href="/partenaires/postuler"
-            className="inline-flex items-center gap-2 bg-brique hover:bg-brique-dark text-white font-bold px-6 py-3 rounded-lg transition-colors">
-            Remplir le formulaire <ArrowRight size={18} />
-          </Link>
+      <section id="postuler" className="max-w-3xl mx-auto px-4 py-16 scroll-mt-24">
+        <div className="text-center">
+          <MapPin size={28} className="text-brique mx-auto mb-3" />
+          <h2 className="font-condensed font-bold text-2xl text-acier mb-2">
+            Prêt à développer votre activité ?
+          </h2>
+          <p className="text-gray-500 mb-8">
+            Remplissez le formulaire ci-dessous. C'est gratuit et sans engagement — nous vous recontactons pour valider votre inscription.
+          </p>
+        </div>
+
+        <FormulaireCandidature />
+
+        <div className="text-center mt-8">
           <a href={`tel:${SITE.telLien}`}
             className="inline-flex items-center gap-2 border border-gray-300 hover:border-brique hover:text-brique text-gray-600 font-semibold px-6 py-3 rounded-lg transition-colors">
-            <Phone size={18} /> Nous appeler
+            <Phone size={18} /> Ou nous appeler
           </a>
+          <p className="text-sm text-gray-400 mt-6">
+            Déjà partenaire ?{' '}
+            <Link href="/partenaires/connexion" className="text-brique font-semibold hover:underline">
+              Accéder à mon espace
+            </Link>
+          </p>
         </div>
-        <p className="text-sm text-gray-400 mt-6">
-          Déjà partenaire ?{' '}
-          <Link href="/partenaires/connexion" className="text-brique font-semibold hover:underline">
-            Accéder à mon espace
-          </Link>
-        </p>
       </section>
     </div>
   )
