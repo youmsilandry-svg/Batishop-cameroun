@@ -67,6 +67,7 @@ export default function AdminProduits() {
   const [form, setForm]           = useState<any>({})
   const [saving, setSaving]       = useState(false)
   const [uploadImg, setUploadImg] = useState(false)
+  const [urlManuelle, setUrlManuelle] = useState('')
   const [succes, setSucces]       = useState('')
   const [email, setEmail]         = useState('')
   const [authErr, setAuthErr]     = useState('')
@@ -134,6 +135,13 @@ export default function AdminProduits() {
   }
 
   // Téléverse une photo depuis l'ordinateur vers Supabase Storage et remplit l'URL
+  // Met à jour la liste d'images (et garde image_url = 1ʳᵉ image = couverture)
+  const majImages = (transform: (cur: string[]) => string[]) => setForm((p: any) => {
+    const cur = Array.isArray(p.images) ? p.images : (p.image_url ? [p.image_url] : [])
+    const next = transform(cur)
+    return { ...p, images: next, image_url: next[0] || '' }
+  })
+
   const uploadImage = async (file: File) => {
     if (!file) return
     if (file.size > 5 * 1024 * 1024) { alert('Image trop lourde (max 5 Mo).'); return }
@@ -143,7 +151,7 @@ export default function AdminProduits() {
     const { error } = await supabase.storage.from('produits').upload(nom, file, { upsert: false, contentType: file.type })
     if (error) { setUploadImg(false); alert("Échec de l'envoi : " + error.message); return }
     const { data } = supabase.storage.from('produits').getPublicUrl(nom)
-    setForm((p: any) => ({ ...p, image_url: data.publicUrl }))
+    majImages(cur => [...cur, data.publicUrl])
     setUploadImg(false)
   }
 
@@ -657,20 +665,36 @@ export default function AdminProduits() {
                   return (
                     <div key={f.k} style={{ gridColumn: f.full ? '1/-1' : 'span 1', background:'#fff', borderRadius:10, padding:12, border:'1px solid #e8e8e8' }}>
                       <label style={{ fontSize:11, fontWeight:700, color:'#888', textTransform:'uppercase', display:'block', marginBottom:6 }}>{f.l}</label>
-                      {f.k==='image_url' ? (
+                      {f.k==='image_url' ? (() => {
+                        const imgs: string[] = Array.isArray(form.images) ? form.images : (form.image_url ? [form.image_url] : [])
+                        return (
                         <div>
-                          <input value={v||''} placeholder="Collez une URL, ou téléversez une photo →" onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%', marginBottom:8 }}/>
-                          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+                          <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginBottom:10 }}>
+                            {imgs.map((url, idx) => (
+                              <div key={idx} style={{ position:'relative', textAlign:'center', width:70 }}>
+                                <img src={url} alt="" style={{ width:70, height:70, objectFit:'cover', borderRadius:8, border: idx===0?'2px solid #C0392B':'1px solid #e8e8e8' }} onError={e=>(e.currentTarget.style.opacity='0.3')}/>
+                                <button type="button" title="Supprimer" onClick={()=>majImages(cur=>cur.filter((_,i)=>i!==idx))}
+                                  style={{ position:'absolute', top:-7, right:-7, background:'#c62828', color:'#fff', border:'none', borderRadius:'50%', width:20, height:20, cursor:'pointer', fontSize:13, lineHeight:'18px' }}>×</button>
+                                {idx===0
+                                  ? <div style={{ fontSize:9, color:'#C0392B', fontWeight:700, marginTop:2 }}>couverture</div>
+                                  : <button type="button" onClick={()=>majImages(cur=>[cur[idx], ...cur.filter((_,i)=>i!==idx)])} style={{ fontSize:9, color:'#888', background:'none', border:'none', cursor:'pointer', marginTop:2, padding:0 }}>définir couverture</button>}
+                              </div>
+                            ))}
+                            {imgs.length===0 && <span style={{ fontSize:12, color:'#aaa', alignSelf:'center' }}>Aucune photo pour l'instant</span>}
+                          </div>
+                          <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                             <label style={{ ...S.btn('#1A2332'), cursor: uploadImg?'wait':'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
                               {uploadImg ? 'Envoi…' : '📷 Téléverser une photo'}
                               <input type="file" accept="image/*" disabled={uploadImg}
                                 onChange={e=>{ const f0=e.target.files?.[0]; if(f0) uploadImage(f0); e.currentTarget.value='' }}
                                 style={{ display:'none' }}/>
                             </label>
-                            {v && <img src={v} alt="" style={{ width:54, height:54, objectFit:'cover', borderRadius:8, border:'1px solid #e8e8e8' }} onError={e=>(e.currentTarget.style.display='none')}/>}
+                            <input value={urlManuelle} placeholder="…ou collez une URL d'image" onChange={e=>setUrlManuelle(e.target.value)} style={{ ...S.input, flex:1, minWidth:160 }}/>
+                            <button type="button" onClick={()=>{ const u=urlManuelle.trim(); if(u){ majImages(cur=>[...cur,u]); setUrlManuelle('') } }} style={S.btn('#f0f0f0','#555')}>Ajouter l'URL</button>
                           </div>
+                          <div style={{ fontSize:11, color:'#999', marginTop:6 }}>La 1ʳᵉ photo (couverture) s'affiche dans le catalogue. Tu peux en ajouter plusieurs.</div>
                         </div>
-                      ) : f.type==='textarea' ? (
+                      )})() : f.type==='textarea' ? (
                         <textarea value={v||''} rows={3} onChange={e=>setForm((p:any)=>({...p,[f.k]:e.target.value}))} style={{ ...S.input, width:'100%', resize:'vertical' }}/>
                       ) : f.type==='select-cat' ? (
                         <select value={v||''} onChange={e=>setForm((p:any)=>({...p,categorie:e.target.value,sous_categorie:''}))} style={{ ...S.input, width:'100%' }}>

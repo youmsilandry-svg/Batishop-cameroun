@@ -39,6 +39,7 @@ export default function PageDetailProduit() {
   const [loading, setLoading] = useState(true)
   const [stockPartenaires, setStockPartenaires] = useState(0)
   const [onglet, setOnglet] = useState('description')
+  const [imgActive, setImgActive] = useState(0)
 
   // ===== AVIS =====
   const [avisListe, setAvisListe] = useState<any[]>([])
@@ -129,24 +130,45 @@ export default function PageDetailProduit() {
       <div className="grid lg:grid-cols-2 gap-8 mb-8">
         {/* IMAGE */}
         <div>
-          <div className="bg-beton rounded-xl flex items-center justify-center h-80 lg:h-96 relative overflow-hidden border border-gray-100">
-            {produit.image_url ? (
-              <img src={produit.image_url} alt={produit.nom} className="object-contain w-full h-full p-4"
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}/>
-            ) : (
-              <span className="text-9xl">{cat?.emoji || '🏗️'}</span>
-            )}
-            {reduction && (
-              <div className="absolute top-4 left-4 bg-brique text-white font-bold text-sm px-3 py-1 rounded">
-                -{reduction}%
-              </div>
-            )}
-            {produit.badge === 'nouveau' && (
-              <div className="absolute top-4 right-4 bg-green-600 text-white font-bold text-xs px-2 py-1 rounded">
-                NOUVEAU
-              </div>
-            )}
-          </div>
+          {(() => {
+            const images: string[] = (Array.isArray(produit.images) && produit.images.length)
+              ? produit.images
+              : (produit.image_url ? [produit.image_url] : [])
+            const active = images[Math.min(imgActive, images.length - 1)] || produit.image_url
+            return (
+              <>
+                <div className="bg-beton rounded-xl flex items-center justify-center h-80 lg:h-96 relative overflow-hidden border border-gray-100">
+                  {active ? (
+                    <img src={active} alt={produit.nom} className="object-contain w-full h-full p-4"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}/>
+                  ) : (
+                    <span className="text-9xl">{cat?.emoji || '🏗️'}</span>
+                  )}
+                  {reduction && (
+                    <div className="absolute top-4 left-4 bg-brique text-white font-bold text-sm px-3 py-1 rounded">
+                      -{reduction}%
+                    </div>
+                  )}
+                  {produit.badge === 'nouveau' && (
+                    <div className="absolute top-4 right-4 bg-green-600 text-white font-bold text-xs px-2 py-1 rounded">
+                      NOUVEAU
+                    </div>
+                  )}
+                </div>
+                {images.length > 1 && (
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    {images.map((url, i) => (
+                      <button key={i} onClick={() => setImgActive(i)}
+                        className={`w-16 h-16 rounded-lg overflow-hidden border-2 bg-beton ${i === imgActive ? 'border-brique' : 'border-transparent'}`}>
+                        <img src={url} alt="" className="object-cover w-full h-full"
+                          onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3' }}/>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )
+          })()}
           <div className="grid grid-cols-3 gap-3 mt-4">
             {[
               { icon: Truck, titre: 'Livraison 48h', sub: 'Partout au CM' },
