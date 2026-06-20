@@ -88,6 +88,16 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
     setLoading(false)
   }
 
+  // Ville par défaut = ville de l'utilisateur connecté (sinon Douala)
+  useEffect(() => {
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: prof } = await supabase.from('profils').select('ville').eq('id', user.id).single()
+      if (prof?.ville && VILLES.includes(prof.ville)) setVille(prof.ville)
+    })()
+  }, [])
+
   useEffect(() => { chercher() }, [ville, produit, exclVille])
 
   // Demander la position du client pour le tri "Plus proche"
@@ -131,6 +141,9 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
   })
 
   const feedback = (k: string) => { setAjoute(p => ({ ...p, [k]: true })); setTimeout(() => setAjoute(p => ({ ...p, [k]: false })), 1800) }
+
+  // BatiShop n'est disponible que si la ville compte au moins un magasin partenaire
+  const villeADesMagasins = partenaires.length > 0
 
   // Prix affiché et facturé pour BatiShop = moyenne des partenaires (repli sur prix catalogue si aucun)
   const prixBatishop = (prixMoyen && prixMoyen.nb_partenaires > 0 && prixMoyen.prix_moyen)
@@ -219,18 +232,24 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="font-bold text-sm text-acier">BatiShop — Livraison à domicile</span>
-                  {produit && (
+                  {produit && villeADesMagasins && (
                     <span className="text-xs bg-brique/10 text-brique px-1.5 py-0.5 rounded-full font-bold">{formatPrix(prixBatishop)}</span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500">Commande en ligne · Livraison à {ville} · Prix garanti</p>
-                <div className="flex items-center justify-between gap-2 mt-2">
-                  <Stepper k="batishop" max={produit?.stock ?? 999}/>
-                  <button onClick={ajouterBatishop} disabled={!produit || getQte('batishop') < 1}
-                    className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${ajoute['batishop'] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
-                    {ajoute['batishop'] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter — {formatPrix(prixBatishop)}</>}
-                  </button>
-                </div>
+                {villeADesMagasins ? (
+                  <>
+                    <p className="text-xs text-gray-500">Commande en ligne · Livraison à {ville} · Prix garanti</p>
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <Stepper k="batishop" max={produit?.stock ?? 999}/>
+                      <button onClick={ajouterBatishop} disabled={!produit || getQte('batishop') < 1}
+                        className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${ajoute['batishop'] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
+                        {ajoute['batishop'] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> Ajouter — {formatPrix(prixBatishop)}</>}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">Produit indisponible dans cette ville.</p>
+                )}
               </div>
             </div>
 
@@ -293,8 +312,8 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
             ) : cherche && (
               <div className="text-center py-6 text-gray-400">
                 <Store size={28} className="mx-auto mb-2 opacity-40"/>
-                <p className="text-sm">Pas de stock chez nos partenaires à {ville}</p>
-                <p className="text-xs mt-1">Ajoutez chez BatiShop ci-dessus ou essayez une autre ville</p>
+                <p className="text-sm">Produit indisponible à {ville}</p>
+                <p className="text-xs mt-1">Aucun magasin ne propose ce produit dans cette ville. Essayez une autre ville.</p>
               </div>
             )}
           </>
