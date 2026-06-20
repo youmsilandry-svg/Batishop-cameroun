@@ -12,6 +12,7 @@ function PageProduitsContent() {
   const router = useRouter()
 
   const [produits, setProduits] = useState<Produit[]>([])
+  const [prixMoyens, setPrixMoyens] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [filtresOuverts, setFiltresOuverts] = useState(false)
@@ -48,6 +49,20 @@ function PageProduitsContent() {
     if (!error && data) {
       setProduits(data)
       setTotal(count || 0)
+      // Prix moyen (avec commission) par produit, dès qu'un partenaire a fixé un prix
+      const ids = data.map((p: any) => p.id)
+      if (ids.length) {
+        const [moy, cc] = await Promise.all([
+          supabase.from('prix_moyen_partenaires').select('produit_id, prix_moyen, nb_partenaires').in('produit_id', ids),
+          supabase.from('commission_config').select('taux').eq('id', 1).maybeSingle(),
+        ])
+        const taux = Number(cc.data?.taux || 0)
+        const map: Record<string, number> = {}
+        ;(moy.data || []).forEach((m: any) => {
+          if (m.nb_partenaires > 0 && m.prix_moyen) map[m.produit_id] = Math.round(m.prix_moyen * (1 + taux / 100))
+        })
+        setPrixMoyens(map)
+      }
     }
     setLoading(false)
   }, [recherche, categorie, sousCategorie, prixMax, badge, tri, page])
@@ -197,7 +212,7 @@ function PageProduitsContent() {
           ) : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {produits.map(p => <CarteProduit key={p.id} produit={p}/>)}
+                {produits.map(p => <CarteProduit key={p.id} produit={p} prixMoyen={prixMoyens[p.id]}/>)}
               </div>
               {nbPages > 1 && (
                 <div className="flex justify-center items-center gap-2 mt-8">

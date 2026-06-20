@@ -38,6 +38,7 @@ export default function PageDetailProduit() {
   const [produit, setProduit] = useState(null)
   const [loading, setLoading] = useState(true)
   const [stockPartenaires, setStockPartenaires] = useState(0)
+  const [prixMoyenClient, setPrixMoyenClient] = useState(0)
   const [onglet, setOnglet] = useState('description')
   const [imgActive, setImgActive] = useState(0)
 
@@ -88,6 +89,15 @@ export default function PageDetailProduit() {
       setProduit(data)
       const { data: stk } = await supabase.from('stocks_partenaires').select('quantite').eq('produit_id', id)
       setStockPartenaires(Array.isArray(stk) ? stk.reduce((s: number, x: any) => s + (x.quantite || 0), 0) : 0)
+      // Prix moyen (avec commission) dès qu'au moins un partenaire a fixé un prix
+      const [moy, cc] = await Promise.all([
+        supabase.from('prix_moyen_partenaires').select('prix_moyen, nb_partenaires').eq('produit_id', id).maybeSingle(),
+        supabase.from('commission_config').select('taux').eq('id', 1).maybeSingle(),
+      ])
+      const taux = Number(cc.data?.taux || 0)
+      if (moy.data && moy.data.nb_partenaires > 0 && moy.data.prix_moyen) {
+        setPrixMoyenClient(Math.round(moy.data.prix_moyen * (1 + taux / 100)))
+      }
       setLoading(false)
     }
     if (id) charger()
@@ -208,23 +218,30 @@ export default function PageDetailProduit() {
 
           {/* PRIX */}
           <div className="bg-beton rounded-xl p-4 mb-4">
-            <div className="flex items-baseline gap-3 mb-1">
-              {produit.prix > 0 ? (
+            {(() => {
+              const prixEff = produit.prix > 0 ? produit.prix : prixMoyenClient
+              return (
                 <>
-                  <span className="font-condensed font-bold text-3xl text-brique">{formatPrix(produit.prix)}</span>
-                  <span className="text-sm text-gray-500">/ {produit.unite}</span>
+                  <div className="flex items-baseline gap-3 mb-1">
+                    {prixEff > 0 ? (
+                      <>
+                        <span className="font-condensed font-bold text-3xl text-brique">{formatPrix(prixEff)}</span>
+                        <span className="text-sm text-gray-500">/ {produit.unite}</span>
+                      </>
+                    ) : (
+                      <span className="font-condensed font-bold text-2xl text-brique">Prix selon le point de vente</span>
+                    )}
+                  </div>
+                  {prixEff > 0 && produit.prix_ancien ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
+                      <span className="text-sm font-bold text-green-600">Économisez {formatPrix(produit.prix_ancien - prixEff)}</span>
+                    </div>
+                  ) : null}
+                  <p className="text-xs text-gray-500 mt-1">{prixEff > 0 ? 'Prix moyen indicatif — voir les prix par magasin ci-dessous' : 'Voir les prix par magasin ci-dessous'}</p>
                 </>
-              ) : (
-                <span className="font-condensed font-bold text-2xl text-brique">Prix selon le point de vente</span>
-              )}
-            </div>
-            {produit.prix > 0 && produit.prix_ancien ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
-                <span className="text-sm font-bold text-green-600">Économisez {formatPrix(produit.prix_ancien - produit.prix)}</span>
-              </div>
-            ) : null}
-            <p className="text-xs text-gray-500 mt-1">{produit.prix > 0 ? 'Prix TTC — Livraison calculée à la commande' : 'Voir les prix par magasin ci-dessous'}</p>
+              )
+            })()}
           </div>
 
           {/* Stock */}

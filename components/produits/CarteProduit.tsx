@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { Heart } from 'lucide-react'
 import { Produit, formatPrix } from '../../lib/supabase'
 
-export function CarteProduit({ produit }: { produit: Produit }) {
+export function CarteProduit({ produit, prixMoyen }: { produit: Produit; prixMoyen?: number }) {
+  const prixEff = produit.prix > 0 ? produit.prix : (prixMoyen || 0)
   const reduction = produit.prix_ancien
     ? Math.round((1 - produit.prix / produit.prix_ancien) * 100)
     : null
@@ -57,9 +58,9 @@ export function CarteProduit({ produit }: { produit: Produit }) {
         <p className="text-xs text-gray-400 mb-2">Réf: {produit.reference}</p>
 
         <div className="flex items-baseline gap-2 mb-2">
-          {produit.prix > 0 ? (
+          {prixEff > 0 ? (
             <>
-              <span className="font-condensed font-bold text-base text-brique">{formatPrix(produit.prix)}</span>
+              <span className="font-condensed font-bold text-base text-brique">{formatPrix(prixEff)}</span>
               {produit.prix_ancien ? (
                 <span className="text-xs text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
               ) : null}
