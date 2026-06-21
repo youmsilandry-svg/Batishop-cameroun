@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { SITE } from '../../lib/config'
+import { SITE, PAYS } from '../../lib/config'
 
 export function Footer() {
   return (
@@ -9,7 +9,7 @@ export function Footer() {
         {/* Logo & contact */}
         <div className="col-span-2 md:col-span-1">
           <div className="font-condensed font-bold text-xl mb-3">
-            Bati<span className="text-brique">Shop</span> CM
+            Bati<span className="text-brique">Shop</span> {PAYS.code}
           </div>
           <p className="text-sm text-white/60 leading-relaxed mb-4">
             Votre partenaire de confiance pour tous vos matériaux de construction au Cameroun.

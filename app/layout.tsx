@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import '../styles/globals.css'
 import SiteChrome from '../components/layout/SiteChrome'
+import { PAYS } from '../lib/config'
 import PWA from '../components/PWA'
 
 export const viewport: Viewport = {
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   title: 'BatiShop Cameroun — Matériaux de Construction',
   description: 'Achetez vos matériaux de construction en ligne au Cameroun. Maçonnerie, plomberie, électricité, carrelage, panneaux solaires livrés partout au Cameroun.',
   keywords: 'matériaux construction cameroun, ciment, plomberie, carrelage, panneaux solaires, douala, yaoundé',
-  appleWebApp: { capable: true, title: 'BatiShop', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: `BatiShop ${PAYS.code}`, statusBarStyle: 'default' },
   openGraph: {
     title: 'BatiShop Cameroun',
     description: 'N°1 des matériaux de construction en ligne au Cameroun',

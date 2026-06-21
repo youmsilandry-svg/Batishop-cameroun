@@ -1,10 +1,11 @@
 import { MetadataRoute } from 'next'
+import { PAYS } from '../lib/config'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'BatiShop Cameroun',
-    short_name: 'BatiShop',
-    description: 'Matériaux de construction au Cameroun — comparez les prix et achetez près de chez vous.',
+    name: `BatiShop ${PAYS.nom}`,
+    short_name: `BatiShop ${PAYS.code}`,
+    description: `Matériaux de construction en ${PAYS.nom} — comparez les prix et achetez près de chez vous.`,
     start_url: '/',
     scope: '/',
     display: 'standalone',

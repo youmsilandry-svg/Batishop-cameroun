@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ShoppingCart, User, Heart, Search, Menu, X, Phone, ChevronRight, ChevronDown } from 'lucide-react'
 import { CATEGORIES, fetchCategories } from '../../lib/supabase'
-import { SITE } from '../../lib/config'
+import { SITE, PAYS } from '../../lib/config'
 
 
 export function Navbar() {
@@ -69,7 +69,7 @@ export function Navbar() {
       <nav className="bg-white border-b-4 border-brique px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <Link href="/" className="font-condensed font-bold text-xl text-acier shrink-0">
-            Bati<span className="text-brique">Shop</span> CM
+            Bati<span className="text-brique">Shop</span> {PAYS.code}
           </Link>
 
           <div className="relative hidden md:block" ref={dropdownRef}>
