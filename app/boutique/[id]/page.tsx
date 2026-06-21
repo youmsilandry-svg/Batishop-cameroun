@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { MapPin, Store, Zap, Package, ArrowLeft } from 'lucide-react'
+import { MapPin, Store, Zap, Package, ArrowLeft, ShoppingCart, Minus, Plus, Check } from 'lucide-react'
 import { supabase, formatPrix } from '../../../lib/supabase'
+import { ajouterLignePanier } from '../../../lib/panier'
 
 export default function PageBoutique() {
   const { id } = useParams()
@@ -15,6 +16,12 @@ export default function PageBoutique() {
   const [magasins, setMagasins] = useState<any[]>([])
   const [ville, setVille] = useState('')
   const [magFiltre, setMagFiltre] = useState('tous')
+  const [qtes, setQtes] = useState<Record<string, number>>({})
+  const [ajoute, setAjoute] = useState<Record<string, boolean>>({})
+
+  const getQte = (k: string) => (qtes[k] === undefined ? 1 : qtes[k])
+  const setQte = (k: string, v: number, max: number) => setQtes(p => ({ ...p, [k]: Math.min(max, Math.max(1, v)) }))
+  const feedback = (k: string) => { setAjoute(p => ({ ...p, [k]: true })); setTimeout(() => setAjoute(p => ({ ...p, [k]: false })), 1800) }
   const [produits, setProduits] = useState<any[]>([])
   const [taux, setTaux] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -24,7 +31,7 @@ export default function PageBoutique() {
     (async () => {
       const [ent, mags, cc] = await Promise.all([
         supabase.from('entreprises').select('nom').eq('id', id).maybeSingle(),
-        supabase.from('partenaires_magasins').select('id, nom, ville, quartier, horaires').eq('entreprise_id', id).eq('actif', true),
+        supabase.from('partenaires_magasins').select('id, nom, ville, quartier, horaires, livre, frais_livraison_base').eq('entreprise_id', id).eq('actif', true),
         supabase.from('commission_config').select('taux').eq('id', 1).maybeSingle(),
       ])
       setEntreprise(ent.data)
@@ -86,6 +93,30 @@ export default function PageBoutique() {
   }, [ville, magasins])
 
   const prixClient = (base: number) => Math.round(base * (1 + taux / 100))
+
+  const ajouter = (produit: any, st: any) => {
+    const m = st.mag
+    if (!m || !(st.prix_local > 0)) return
+    const k = `${produit.id}:${m.id}`
+    ajouterLignePanier(
+      produit,
+      { id: m.id, nom: m.nom, ville: m.ville, prix_local: prixClient(st.prix_local), livre: m.livre ?? true, frais_livraison_base: m.frais_livraison_base ?? 0 },
+      getQte(k),
+    )
+    feedback(k)
+  }
+
+  const Stepper = ({ k, max }: { k: string; max: number }) => (
+    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white shrink-0">
+      <button onClick={() => setQte(k, getQte(k) - 1, max)} disabled={getQte(k) <= 1}
+        className="px-1.5 py-1 hover:bg-beton text-acier disabled:opacity-40"><Minus size={11} /></button>
+      <input value={getQte(k)} onChange={e => setQte(k, parseInt(e.target.value) || 1, max)}
+        className="w-8 text-center text-xs outline-none" />
+      <button onClick={() => setQte(k, getQte(k) + 1, max)} disabled={getQte(k) >= max}
+        className="px-1.5 py-1 hover:bg-beton text-acier disabled:opacity-40"><Plus size={11} /></button>
+    </div>
+  )
+
   const villes = Array.from(new Set(magasins.map(m => m.ville)))
   const magsVilleR = magasins.filter(m => m.ville === ville)
   const photo = (p: any) => (Array.isArray(p.images) && p.images.length ? p.images[0] : p.image_url) || ''
@@ -174,24 +205,42 @@ export default function PageBoutique() {
                         : <span className="text-sm text-gray-400">Voir le prix</span>}
                   </div>
 
-                  {/* Disponibilité par magasin (même ville) */}
-                  <div className="mt-auto space-y-1.5 border-t pt-2">
+                  {/* Ajout direct au panier, par magasin (prix exact) */}
+                  <div className="mt-auto space-y-2 border-t pt-2">
                     <p className="text-xs font-semibold text-gray-400 uppercase">Disponible à</p>
-                    {stores.map((st: any, i: number) => (
-                      <div key={i} className="flex items-start gap-1.5 text-xs">
-                        <MapPin size={12} className="text-brique mt-0.5 shrink-0" />
-                        <span className="text-gray-600 flex-1 min-w-0">
-                          <span className="font-medium text-acier">{st.mag?.quartier || st.mag?.nom}</span>
-                          {' · '}{st.quantite} en stock
-                          {st.dispo && <span className="text-green-600 font-medium inline-flex items-center gap-0.5 ml-1"><Zap size={9} /> retrait immédiat</span>}
-                        </span>
-                      </div>
-                    ))}
+                    {stores.map((st: any, i: number) => {
+                      const k = `${produit.id}:${st.mag?.id}`
+                      const px = prixClient(st.prix_local)
+                      const dispoAchat = st.prix_local > 0 && st.quantite > 0
+                      return (
+                        <div key={i} className="bg-beton rounded-lg p-2">
+                          <div className="flex items-start gap-1.5 text-xs mb-1.5">
+                            <MapPin size={12} className="text-brique mt-0.5 shrink-0" />
+                            <span className="text-gray-600 flex-1 min-w-0">
+                              <span className="font-medium text-acier">{st.mag?.quartier || st.mag?.nom}</span>
+                              {' · '}{st.quantite} en stock
+                              {st.dispo && <span className="text-green-600 font-medium inline-flex items-center gap-0.5 ml-1"><Zap size={9} /> retrait</span>}
+                            </span>
+                          </div>
+                          {dispoAchat ? (
+                            <div className="flex items-center gap-2">
+                              <Stepper k={k} max={st.quantite} />
+                              <button onClick={() => ajouter(produit, st)}
+                                className={`flex-1 text-center text-xs font-semibold rounded-lg py-1.5 inline-flex items-center justify-center gap-1 transition-colors ${ajoute[k] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique/90'}`}>
+                                {ajoute[k] ? <><Check size={12} /> Ajouté</> : <><ShoppingCart size={12} /> {formatPrix(px)}</>}
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400">Indisponible</p>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
 
                   <Link href={`/produits/${produit.id}`}
-                    className="mt-3 text-center text-xs font-semibold bg-acier text-white rounded-lg py-2 hover:bg-acier/90">
-                    Voir / acheter
+                    className="mt-2 text-center text-xs font-medium text-acier hover:text-brique underline">
+                    Voir la fiche détaillée
                   </Link>
                 </div>
               </div>
