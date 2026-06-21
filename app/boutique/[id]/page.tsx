@@ -14,6 +14,7 @@ export default function PageBoutique() {
   const [entreprise, setEntreprise] = useState<any>(null)
   const [magasins, setMagasins] = useState<any[]>([])
   const [ville, setVille] = useState('')
+  const [magFiltre, setMagFiltre] = useState('tous')
   const [produits, setProduits] = useState<any[]>([])
   const [taux, setTaux] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -41,13 +42,14 @@ export default function PageBoutique() {
     (async () => {
       setLoading(true)
       const magsVille = magasins.filter(m => m.ville === ville)
+      setMagFiltre('tous')
       const ids = magsVille.map(m => m.id)
       if (!ids.length) { setProduits([]); setLoading(false); return }
 
       const { data: stocks } = await supabase
         .from('stocks_partenaires')
-        .select('quantite, prix_local, disponible_immediat, point_vente_id, produit_id')
-        .in('point_vente_id', ids)
+        .select('quantite, prix_local, disponible_immediat, partenaire_id, produit_id')
+        .in('partenaire_id', ids)
         .gt('quantite', 0)
 
       const prodIds = Array.from(new Set((stocks || []).map((s: any) => s.produit_id)))
@@ -73,7 +75,7 @@ export default function PageBoutique() {
         if (!p) return // produit inactif ou supprimé
         if (!groupes.has(p.id)) groupes.set(p.id, { produit: p, stores: [] as any[], prixMin: Infinity, prixMoyen: moyMap.get(p.id) || 0 })
         const g = groupes.get(p.id)
-        const mag = magsVille.find(m => m.id === s.point_vente_id)
+        const mag = magsVille.find(m => m.id === s.partenaire_id)
         g.stores.push({ mag, quantite: s.quantite, prix_local: s.prix_local, dispo: s.disponible_immediat })
         if (s.prix_local > 0) g.prixMin = Math.min(g.prixMin, s.prix_local)
       })
@@ -85,7 +87,13 @@ export default function PageBoutique() {
 
   const prixClient = (base: number) => Math.round(base * (1 + taux / 100))
   const villes = Array.from(new Set(magasins.map(m => m.ville)))
+  const magsVilleR = magasins.filter(m => m.ville === ville)
   const photo = (p: any) => (Array.isArray(p.images) && p.images.length ? p.images[0] : p.image_url) || ''
+  const produitsAffiches = magFiltre === 'tous'
+    ? produits
+    : produits
+        .map((g: any) => ({ ...g, stores: g.stores.filter((s: any) => s.mag?.id === magFiltre) }))
+        .filter((g: any) => g.stores.length > 0)
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -104,14 +112,26 @@ export default function PageBoutique() {
         </div>
       </div>
 
-      {/* Sélecteur de ville */}
+      {/* Filtres : ville puis magasin */}
       {villes.length > 0 && (
-        <div className="mb-6 max-w-xs">
-          <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">Ville</label>
-          <select value={ville} onChange={e => setVille(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-acier focus:border-brique outline-none">
-            {villes.map(v => <option key={v as string} value={v as string}>{v as string}</option>)}
-          </select>
+        <div className="mb-6 flex flex-wrap gap-4">
+          <div className="w-full sm:w-56">
+            <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">Ville</label>
+            <select value={ville} onChange={e => setVille(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-acier focus:border-brique outline-none">
+              {villes.map(v => <option key={v as string} value={v as string}>{v as string}</option>)}
+            </select>
+          </div>
+          {magsVilleR.length > 1 && (
+            <div className="w-full sm:w-64">
+              <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">Magasin</label>
+              <select value={magFiltre} onChange={e => setMagFiltre(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-acier focus:border-brique outline-none">
+                <option value="tous">Tous les magasins ({magsVilleR.length})</option>
+                {magsVilleR.map(m => <option key={m.id} value={m.id}>{m.quartier || m.nom}</option>)}
+              </select>
+            </div>
+          )}
         </div>
       )}
 
@@ -119,16 +139,19 @@ export default function PageBoutique() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-64 bg-gray-100 rounded-xl animate-pulse" />)}
         </div>
-      ) : produits.length === 0 ? (
+      ) : produitsAffiches.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <Package size={32} className="mx-auto mb-3 opacity-40" />
           <p className="text-sm">Aucun produit disponible chez ce partenaire à {ville || 'cette ville'}.</p>
         </div>
       ) : (
         <>
-          <p className="text-sm text-gray-500 mb-4">{produits.length} produit{produits.length > 1 ? 's' : ''} disponible{produits.length > 1 ? 's' : ''} à {ville}</p>
+          <p className="text-sm text-gray-500 mb-4">{produitsAffiches.length} produit{produitsAffiches.length > 1 ? 's' : ''} disponible{produitsAffiches.length > 1 ? 's' : ''} à {ville}</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {produits.map(({ produit, stores, prixMin, prixMoyen }) => (
+            {produitsAffiches.map(({ produit, stores, prixMoyen }: any) => {
+              const priced = stores.filter((s: any) => s.prix_local > 0)
+              const prixMin = priced.length ? Math.min(...priced.map((s: any) => s.prix_local)) : Infinity
+              return (
               <div key={produit.id} className="card overflow-hidden flex flex-col">
                 <Link href={`/produits/${produit.id}`} className="block">
                   <div className="h-36 bg-beton flex items-center justify-center overflow-hidden">
@@ -172,7 +195,8 @@ export default function PageBoutique() {
                   </Link>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         </>
       )}
