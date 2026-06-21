@@ -50,12 +50,12 @@ export default async function HomePage() {
       supabase.from('commission_config').select('taux').eq('id', 1).maybeSingle(),
     ])
     const taux = Number(cc.data?.taux || 0)
-    const agg: Record<string, { sum: number; n: number }> = {}
+    const minPrix: Record<string, number> = {} // prix le plus bas par produit
     ;(stk.data || []).forEach((s: any) => {
-      const a = agg[s.produit_id] || (agg[s.produit_id] = { sum: 0, n: 0 })
-      a.sum += Number(s.prix_local); a.n += 1
+      const p = Number(s.prix_local)
+      if (p > 0 && (minPrix[s.produit_id] === undefined || p < minPrix[s.produit_id])) minPrix[s.produit_id] = p
     })
-    Object.entries(agg).forEach(([pid, a]) => { prixMoyens[pid] = Math.round((a.sum / a.n) * (1 + taux / 100)) })
+    Object.entries(minPrix).forEach(([pid, p]) => { prixMoyens[pid] = Math.round(p * (1 + taux / 100)) })
   }
 
   return (

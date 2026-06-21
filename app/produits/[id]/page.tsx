@@ -89,17 +89,7 @@ export default function PageDetailProduit() {
       setProduit(data)
       const { data: stk } = await supabase.from('stocks_partenaires').select('quantite').eq('produit_id', id)
       setStockPartenaires(Array.isArray(stk) ? stk.reduce((s: number, x: any) => s + (x.quantite || 0), 0) : 0)
-      // Prix moyen (avec commission) calculé depuis les stocks partenaires
-      const [stkPrix, cc] = await Promise.all([
-        supabase.from('stocks_partenaires').select('prix_local').eq('produit_id', id).gt('prix_local', 0),
-        supabase.from('commission_config').select('taux').eq('id', 1).maybeSingle(),
-      ])
-      const taux = Number(cc.data?.taux || 0)
-      const prix = (stkPrix.data || []).map((s: any) => Number(s.prix_local)).filter((n: number) => n > 0)
-      if (prix.length) {
-        const moyenne = prix.reduce((a: number, b: number) => a + b, 0) / prix.length
-        setPrixMoyenClient(Math.round(moyenne * (1 + taux / 100)))
-      }
+      // Le prix moyen PAR VILLE est fourni par le composant "Où trouver" (callback onPrixMoyen)
       setLoading(false)
     }
     if (id) charger()
@@ -487,7 +477,7 @@ export default function PageDetailProduit() {
       </div>
 
       <div id="ou-trouver" className="mb-6 scroll-mt-24">
-        <OuTrouver produitId={produit.id} produitNom={produit.nom} />
+        <OuTrouver produitId={produit.id} produitNom={produit.nom} onPrixMoyen={setPrixMoyenClient} />
       </div>
       <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-500 hover:text-brique">
         <ArrowLeft size={16}/> Retour au catalogue

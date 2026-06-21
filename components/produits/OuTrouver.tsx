@@ -19,13 +19,14 @@ const haversine = (la1: number, lo1: number, la2: number, lo2: number) => {
   return 2 * R * Math.asin(Math.sqrt(a))
 }
 
-export function OuTrouver({ produitId, produitNom }: { produitId: string; produitNom: string }) {
+export function OuTrouver({ produitId, produitNom, onPrixMoyen }: { produitId: string; produitNom: string; onPrixMoyen?: (n: number) => void }) {
   const [ville, setVille] = useState('Douala')
   const [tri, setTri] = useState('pertinence')
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null)
   const [geoErr, setGeoErr] = useState('')
   const [partenaires, setPartenaires] = useState<any[]>([])
   const [prixMoyen, setPrixMoyen] = useState<any>(null)
+  const [tauxGlobal, setTauxGlobal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [cherche, setCherche] = useState(false)
   const [produit, setProduit] = useState<any>(null)
@@ -53,6 +54,12 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
       .eq('produit_id', produitId).maybeSingle()
       .then(({ data }) => setPrixMoyen(data))
   }, [produitId])
+
+  // Taux de commission global (ajouté au prix affiché au client)
+  useEffect(() => {
+    supabase.from('commission_config').select('taux').eq('id', 1).maybeSingle()
+      .then(({ data }) => { if (data?.taux != null) setTauxGlobal(Number(data.taux)) })
+  }, [])
 
   const chercher = async () => {
     setLoading(true); setCherche(true)
@@ -146,10 +153,19 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
   // BatiShop n'est disponible que si la ville compte au moins un magasin partenaire
   const villeADesMagasins = partenaires.length > 0
 
-  // Prix affiché et facturé pour BatiShop = moyenne des partenaires (repli sur prix catalogue si aucun)
-  const prixBatishop = (prixMoyen && prixMoyen.nb_partenaires > 0 && prixMoyen.prix_moyen)
-    ? prixMoyen.prix_moyen
-    : (produit?.prix ?? 0)
+  // Prix affiché au client = prix de base + commission globale
+  const prixClient = (base: number) => Math.round((base || 0) * (1 + tauxGlobal / 100))
+
+  // Prix BatiShop = moyenne des prix partenaires DE LA VILLE (+ commission)
+  const prixVille = partenaires.map((s: any) => Number(s.prix_local)).filter((p: number) => p > 0)
+  const baseVille = prixVille.length ? prixVille.reduce((a, b) => a + b, 0) / prixVille.length : (produit?.prix ?? 0)
+  const prixBatishop = prixClient(baseVille)
+
+  // Remonte le prix moyen (par ville) vers la fiche produit
+  useEffect(() => {
+    if (onPrixMoyen) onPrixMoyen(prixVille.length ? prixBatishop : 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partenaires, tauxGlobal])
 
   const ajouterBatishop = () => {
     if (!produit) return
@@ -159,7 +175,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
   const ajouterPartenaire = (s: any) => {
     if (!produit) return
     const m = s.partenaires_magasins
-    ajouterLignePanier(produit, { id: m.id, nom: m.nom, ville: m.ville, prix_local: s.prix_local, livre: m.livre ?? true, frais_livraison_base: m.frais_livraison_base ?? 0 }, getQte(m.id))
+    ajouterLignePanier(produit, { id: m.id, nom: m.nom, ville: m.ville, prix_local: prixClient(s.prix_local), livre: m.livre ?? true, frais_livraison_base: m.frais_livraison_base ?? 0 }, getQte(m.id))
     feedback(m.id)
   }
 
@@ -276,7 +292,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                             <span className="text-xs bg-or/20 text-acier px-1.5 py-0.5 rounded-full font-bold">⭐ Partenaire officiel</span>
                           )}
                           {s.prix_local > 0 && (
-                            <span className="text-xs bg-brique/10 text-brique px-1.5 py-0.5 rounded-full font-bold">{formatPrix(s.prix_local)}</span>
+                            <span className="text-xs bg-brique/10 text-brique px-1.5 py-0.5 rounded-full font-bold">{formatPrix(prixClient(s.prix_local))}</span>
                           )}
                           <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">{s.quantite} en stock</span>
                           {s.disponible_immediat && (
@@ -304,7 +320,7 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                           </div>
                           <button onClick={() => ajouterPartenaire(s)} disabled={!produit || !(s.prix_local > 0) || getQte(mag.id) < 1}
                             className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${ajoute[mag.id] ? 'bg-green-600 text-white' : 'bg-brique text-white hover:bg-brique-dark'}`}>
-                            {ajoute[mag.id] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> {s.prix_local > 0 ? `Ajouter — ${formatPrix(s.prix_local)}` : 'Ajouter au panier'}</>}
+                            {ajoute[mag.id] ? <><Check size={12}/> Ajouté</> : <><ShoppingCart size={12}/> {s.prix_local > 0 ? `Ajouter — ${formatPrix(prixClient(s.prix_local))}` : 'Ajouter au panier'}</>}
                           </button>
                         </div>
                       </div>
