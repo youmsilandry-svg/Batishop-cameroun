@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { MapPin, Clock, Navigation, Store, Package, Zap, ShoppingCart, Minus, Plus, Check } from 'lucide-react'
+import Link from 'next/link'
 import { supabase, VILLES, formatPrix } from '../../lib/supabase'
 import { ajouterLignePanier } from '../../lib/panier'
 
@@ -263,12 +264,14 @@ export function OuTrouver({ produitId, produitNom }: { produitId: string; produi
                   const mag = s.partenaires_magasins
                   return (
                     <div key={i} className="flex items-start gap-3 p-3 bg-beton rounded-xl">
-                      <div className="w-9 h-9 rounded-full bg-acier/10 flex items-center justify-center shrink-0">
+                      <Link href={`/boutique/${mag.entreprise_id}?ville=${encodeURIComponent(ville)}`} title="Voir la boutique de ce partenaire"
+                        className="w-9 h-9 rounded-full bg-acier/10 hover:bg-acier/20 flex items-center justify-center shrink-0">
                         <Store size={15} className="text-acier"/>
-                      </div>
+                      </Link>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <span className="font-bold text-sm text-acier truncate">{mag.nom}</span>
+                          <Link href={`/boutique/${mag.entreprise_id}?ville=${encodeURIComponent(ville)}`}
+                            className="font-bold text-sm text-acier truncate hover:text-brique hover:underline">{mag.nom}</Link>
                           {s.mis_en_avant && (
                             <span className="text-xs bg-or/20 text-acier px-1.5 py-0.5 rounded-full font-bold">⭐ Partenaire officiel</span>
                           )}
