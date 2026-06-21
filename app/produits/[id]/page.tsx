@@ -89,14 +89,16 @@ export default function PageDetailProduit() {
       setProduit(data)
       const { data: stk } = await supabase.from('stocks_partenaires').select('quantite').eq('produit_id', id)
       setStockPartenaires(Array.isArray(stk) ? stk.reduce((s: number, x: any) => s + (x.quantite || 0), 0) : 0)
-      // Prix moyen (avec commission) dès qu'au moins un partenaire a fixé un prix
-      const [moy, cc] = await Promise.all([
-        supabase.from('prix_moyen_partenaires').select('prix_moyen, nb_partenaires').eq('produit_id', id).maybeSingle(),
+      // Prix moyen (avec commission) calculé depuis les stocks partenaires
+      const [stkPrix, cc] = await Promise.all([
+        supabase.from('stocks_partenaires').select('prix_local').eq('produit_id', id).gt('prix_local', 0),
         supabase.from('commission_config').select('taux').eq('id', 1).maybeSingle(),
       ])
       const taux = Number(cc.data?.taux || 0)
-      if (moy.data && moy.data.nb_partenaires > 0 && moy.data.prix_moyen) {
-        setPrixMoyenClient(Math.round(moy.data.prix_moyen * (1 + taux / 100)))
+      const prix = (stkPrix.data || []).map((s: any) => Number(s.prix_local)).filter((n: number) => n > 0)
+      if (prix.length) {
+        const moyenne = prix.reduce((a: number, b: number) => a + b, 0) / prix.length
+        setPrixMoyenClient(Math.round(moyenne * (1 + taux / 100)))
       }
       setLoading(false)
     }

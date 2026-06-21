@@ -52,20 +52,26 @@ export default function PageBoutique() {
 
       const prodIds = Array.from(new Set((stocks || []).map((s: any) => s.produit_id)))
       let prodMap = new Map<string, any>()
+      let moyMap = new Map<string, number>()
       if (prodIds.length) {
-        const { data: prods } = await supabase
-          .from('produits')
-          .select('id, nom, image_url, images, unite, reference')
-          .in('id', prodIds)
-          .eq('actif', true)
-        prodMap = new Map((prods || []).map((p: any) => [p.id, p]))
+        const [prods, glob] = await Promise.all([
+          supabase.from('produits').select('id, nom, image_url, images, unite, reference').in('id', prodIds).eq('actif', true),
+          supabase.from('stocks_partenaires').select('produit_id, prix_local').in('produit_id', prodIds).gt('prix_local', 0),
+        ])
+        prodMap = new Map((prods.data || []).map((p: any) => [p.id, p]))
+        const agg: Record<string, { sum: number; n: number }> = {}
+        ;(glob.data || []).forEach((s: any) => {
+          const a = agg[s.produit_id] || (agg[s.produit_id] = { sum: 0, n: 0 })
+          a.sum += Number(s.prix_local); a.n += 1
+        })
+        Object.entries(agg).forEach(([pid, a]) => moyMap.set(pid, a.sum / a.n))
       }
 
       const groupes = new Map<string, any>()
       ;(stocks || []).forEach((s: any) => {
         const p = prodMap.get(s.produit_id)
         if (!p) return // produit inactif ou supprimé
-        if (!groupes.has(p.id)) groupes.set(p.id, { produit: p, stores: [] as any[], prixMin: Infinity })
+        if (!groupes.has(p.id)) groupes.set(p.id, { produit: p, stores: [] as any[], prixMin: Infinity, prixMoyen: moyMap.get(p.id) || 0 })
         const g = groupes.get(p.id)
         const mag = magsVille.find(m => m.id === s.point_vente_id)
         g.stores.push({ mag, quantite: s.quantite, prix_local: s.prix_local, dispo: s.disponible_immediat })
@@ -122,7 +128,7 @@ export default function PageBoutique() {
         <>
           <p className="text-sm text-gray-500 mb-4">{produits.length} produit{produits.length > 1 ? 's' : ''} disponible{produits.length > 1 ? 's' : ''} à {ville}</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {produits.map(({ produit, stores, prixMin }) => (
+            {produits.map(({ produit, stores, prixMin, prixMoyen }) => (
               <div key={produit.id} className="card overflow-hidden flex flex-col">
                 <Link href={`/produits/${produit.id}`} className="block">
                   <div className="h-36 bg-beton flex items-center justify-center overflow-hidden">
@@ -140,7 +146,9 @@ export default function PageBoutique() {
                   <div className="mt-1 mb-2">
                     {prixMin !== Infinity
                       ? <span className="font-condensed font-bold text-brique">À partir de {formatPrix(prixClient(prixMin))}</span>
-                      : <span className="text-sm text-gray-400">Voir le prix</span>}
+                      : prixMoyen > 0
+                        ? <span className="font-condensed font-bold text-brique">{formatPrix(prixClient(prixMoyen))}</span>
+                        : <span className="text-sm text-gray-400">Voir le prix</span>}
                   </div>
 
                   {/* Disponibilité par magasin (même ville) */}

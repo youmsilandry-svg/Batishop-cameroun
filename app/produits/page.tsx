@@ -49,18 +49,21 @@ function PageProduitsContent() {
     if (!error && data) {
       setProduits(data)
       setTotal(count || 0)
-      // Prix moyen (avec commission) par produit, dès qu'un partenaire a fixé un prix
+      // Prix moyen (avec commission) par produit, calculé depuis les stocks partenaires
       const ids = data.map((p: any) => p.id)
       if (ids.length) {
-        const [moy, cc] = await Promise.all([
-          supabase.from('prix_moyen_partenaires').select('produit_id, prix_moyen, nb_partenaires').in('produit_id', ids),
+        const [stk, cc] = await Promise.all([
+          supabase.from('stocks_partenaires').select('produit_id, prix_local').in('produit_id', ids).gt('prix_local', 0),
           supabase.from('commission_config').select('taux').eq('id', 1).maybeSingle(),
         ])
         const taux = Number(cc.data?.taux || 0)
-        const map: Record<string, number> = {}
-        ;(moy.data || []).forEach((m: any) => {
-          if (m.nb_partenaires > 0 && m.prix_moyen) map[m.produit_id] = Math.round(m.prix_moyen * (1 + taux / 100))
+        const agg: Record<string, { sum: number; n: number }> = {}
+        ;(stk.data || []).forEach((s: any) => {
+          const a = agg[s.produit_id] || (agg[s.produit_id] = { sum: 0, n: 0 })
+          a.sum += Number(s.prix_local); a.n += 1
         })
+        const map: Record<string, number> = {}
+        Object.entries(agg).forEach(([pid, a]) => { map[pid] = Math.round((a.sum / a.n) * (1 + taux / 100)) })
         setPrixMoyens(map)
       }
     }
