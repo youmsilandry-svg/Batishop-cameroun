@@ -41,6 +41,23 @@ export default async function HomePage() {
   const { data: promos } = await supabase.from('produits')
     .select('*').eq('actif', true).not('prix_ancien', 'is', null).order('created_at', { ascending: false }).limit(10)
 
+  // Prix moyen (avec commission) par produit, depuis les stocks partenaires
+  const idsHome = Array.from(new Set([...(vedettes || []), ...(promos || [])].map((p: any) => p.id)))
+  const prixMoyens: Record<string, number> = {}
+  if (idsHome.length) {
+    const [stk, cc] = await Promise.all([
+      supabase.from('stocks_partenaires').select('produit_id, prix_local').in('produit_id', idsHome).gt('prix_local', 0),
+      supabase.from('commission_config').select('taux').eq('id', 1).maybeSingle(),
+    ])
+    const taux = Number(cc.data?.taux || 0)
+    const agg: Record<string, { sum: number; n: number }> = {}
+    ;(stk.data || []).forEach((s: any) => {
+      const a = agg[s.produit_id] || (agg[s.produit_id] = { sum: 0, n: 0 })
+      a.sum += Number(s.prix_local); a.n += 1
+    })
+    Object.entries(agg).forEach(([pid, a]) => { prixMoyens[pid] = Math.round((a.sum / a.n) * (1 + taux / 100)) })
+  }
+
   return (
     <div className="bg-beton min-h-screen">
 
@@ -126,7 +143,7 @@ export default async function HomePage() {
             <Link href="/produits" className="text-sm text-brique font-medium hover:underline">Voir tout →</Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {vedettes.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} />)}
+            {vedettes.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} prixMoyen={prixMoyens[p.id]} />)}
           </div>
         </section>
       )}
@@ -140,7 +157,7 @@ export default async function HomePage() {
               <Link href="/produits" className="text-sm text-brique font-medium hover:underline">Tout voir →</Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {promos.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} />)}
+              {promos.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} prixMoyen={prixMoyens[p.id]} />)}
             </div>
           </div>
         </section>
