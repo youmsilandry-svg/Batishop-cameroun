@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Heart } from 'lucide-react'
 import { Produit, formatPrix } from '../../lib/supabase'
 
-export function CarteProduit({ produit, prixMoyen }: { produit: Produit; prixMoyen?: number }) {
+export function CarteProduit({ produit, prixMoyen, aPartirDe }: { produit: Produit; prixMoyen?: number; aPartirDe?: boolean }) {
   const prixEff = produit.prix > 0 ? produit.prix : (prixMoyen || 0)
   const reduction = produit.prix_ancien
     ? Math.round((1 - produit.prix / produit.prix_ancien) * 100)
@@ -59,13 +59,17 @@ export function CarteProduit({ produit, prixMoyen }: { produit: Produit; prixMoy
 
         <div className="flex items-baseline gap-2 mb-2">
           {prixEff > 0 ? (
-            <>
-              <span className="font-condensed font-bold text-base text-brique">{formatPrix(prixEff)}</span>
-              {produit.prix_ancien ? (
-                <span className="text-xs text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
-              ) : null}
-              <span className="text-xs text-gray-400">/{produit.unite}</span>
-            </>
+            aPartirDe ? (
+              <span className="font-condensed font-bold text-base text-brique">À partir de {formatPrix(prixEff)}</span>
+            ) : (
+              <>
+                <span className="font-condensed font-bold text-base text-brique">{formatPrix(prixEff)}</span>
+                {produit.prix_ancien ? (
+                  <span className="text-xs text-gray-400 line-through">{formatPrix(produit.prix_ancien)}</span>
+                ) : null}
+                <span className="text-xs text-gray-400">/{produit.unite}</span>
+              </>
+            )
           ) : (
             <span className="font-condensed font-bold text-base text-brique">Voir les prix</span>
           )}

@@ -143,7 +143,7 @@ export default async function HomePage() {
             <Link href="/produits" className="text-sm text-brique font-medium hover:underline">Voir tout →</Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {vedettes.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} prixMoyen={prixMoyens[p.id]} />)}
+            {vedettes.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} prixMoyen={prixMoyens[p.id]} aPartirDe />)}
           </div>
         </section>
       )}
@@ -157,7 +157,7 @@ export default async function HomePage() {
               <Link href="/produits" className="text-sm text-brique font-medium hover:underline">Tout voir →</Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {promos.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} prixMoyen={prixMoyens[p.id]} />)}
+              {promos.slice(0, 10).map((p: any) => <CarteProduit key={p.id} produit={p} prixMoyen={prixMoyens[p.id]} aPartirDe />)}
             </div>
           </div>
         </section>
