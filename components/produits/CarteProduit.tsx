@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Heart } from 'lucide-react'
 import { Produit, formatPrix } from '../../lib/supabase'
 
-export function CarteProduit({ produit, prixMoyen, aPartirDe }: { produit: Produit; prixMoyen?: number; aPartirDe?: boolean }) {
+export function CarteProduit({ produit, prixMoyen, aPartirDe, distanceKm }: { produit: Produit; prixMoyen?: number; aPartirDe?: boolean; distanceKm?: number }) {
   const prixEff = produit.prix > 0 ? produit.prix : (prixMoyen || 0)
   const reduction = produit.prix_ancien
     ? Math.round((1 - produit.prix / produit.prix_ancien) * 100)
@@ -55,6 +55,9 @@ export function CarteProduit({ produit, prixMoyen, aPartirDe }: { produit: Produ
           </span>
         )}
         <h3 className="font-medium text-sm text-acier leading-snug mb-1 line-clamp-2">{produit.nom}</h3>
+        {distanceKm !== undefined && (
+          <p className="text-xs text-gray-500 mb-1">📍 magasin le plus proche à {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`}</p>
+        )}
         <p className="text-xs text-gray-400 mb-2">Réf: {produit.reference}</p>
 
         <div className="flex items-baseline gap-2 mb-2">

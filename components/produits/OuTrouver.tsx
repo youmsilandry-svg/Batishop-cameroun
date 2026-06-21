@@ -4,6 +4,7 @@ import { MapPin, Clock, Navigation, Store, Package, Zap, ShoppingCart, Minus, Pl
 import Link from 'next/link'
 import { supabase, VILLES, formatPrix } from '../../lib/supabase'
 import { ajouterLignePanier } from '../../lib/panier'
+import { getVilleMemo, setVilleMemo } from '../../lib/ville'
 
 const TRIS = [
   { id: 'pertinence', label: 'Pertinence', icon: '⭐' },
@@ -96,8 +97,10 @@ export function OuTrouver({ produitId, produitNom, onPrixMoyen }: { produitId: s
     setLoading(false)
   }
 
-  // Ville par défaut = ville de l'utilisateur connecté (sinon Douala)
+  // Ville par défaut : ville mémorisée (choisie sur le catalogue) > profil > Douala
   useEffect(() => {
+    const memo = getVilleMemo()
+    if (memo && VILLES.includes(memo)) { setVille(memo); return }
     ;(async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -105,6 +108,9 @@ export function OuTrouver({ produitId, produitNom, onPrixMoyen }: { produitId: s
       if (prof?.ville && VILLES.includes(prof.ville)) setVille(prof.ville)
     })()
   }, [])
+
+  // Mémorise la ville choisie ici pour la repartager (catalogue, autres fiches)
+  const choisirVille = (v: string) => { setVille(v); setVilleMemo(v) }
 
   useEffect(() => { chercher() }, [ville, produit, exclVille])
 
@@ -211,7 +217,7 @@ export function OuTrouver({ produitId, produitNom, onPrixMoyen }: { produitId: s
         <div className="flex gap-3 flex-wrap">
           <div className="flex-1 min-w-32">
             <label className="text-xs font-semibold text-gray-400 block mb-1">Ma ville</label>
-            <select value={ville} onChange={e => setVille(e.target.value)} className="input-field text-sm">
+            <select value={ville} onChange={e => choisirVille(e.target.value)} className="input-field text-sm">
               {VILLES.map(v => <option key={v}>{v}</option>)}
             </select>
           </div>
