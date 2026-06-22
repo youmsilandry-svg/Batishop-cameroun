@@ -1,89 +1,124 @@
 // =====================================================================
-//  Coordonnées BatiShop — MODIFIE TOUT ICI (un seul endroit)
-//  Téléphone, email, adresse, WhatsApp utilisés partout sur le site.
-// =====================================================================
-
-export const SITE = {
-  nom: 'BatiShop Cameroun',
-
-  // Téléphone
-  tel: '+237 673644892',        // tel affiché à l'écran
-  telLien: '+237673644892',        // tel pour les liens cliquables (format international, sans espaces)
-
-  // WhatsApp (numéro sans + ni espaces, ex: 237600000000)
-  whatsapp: '237673644892',
-
-  // Emails
-  email: 'contact@batishop-cameroun.com',
-  emailPartenaires: 'partenaires@batishop-cameroun.com',
-
-  // Adresse
-  adresse: 'Carrefour-Tsinga, Yaounde, Cameroun',
-
-  // Paiement mobile money — numéros où les CLIENTS envoient leur paiement
-  momoNom: 'BatiShop Cameroun',     // nom du compte qui reçoit l'argent
-  momoMtn: '+237 6XX XXX XXX',      // MTN Mobile Money
-  momoOrange: '+237 6XX XXX XXX',   // Orange Money
-}
-
-// =====================================================================
-//  PAYS — tout ce qui dépend du pays est ici.
-//  Pour lancer un autre pays (ex. Côte d'Ivoire) : clone le projet et
-//  remplace le bloc ci-dessous par celui en commentaire plus bas.
-// =====================================================================
-export const PAYS = {
-  code: 'CM',
-  nom: 'Cameroun',
-  devise: 'XAF',        // XAF = Cameroun (CEMAC) · XOF = Côte d'Ivoire / Afrique de l'Ouest
-  locale: 'fr-CM',      // utilisé pour le format des prix
-  indicatif: '237',     // indicatif téléphonique
-  fraisMomoPourcent: 2, // frais ajoutés au client s'il paie par mobile money (en %)
-  villes: [
-    'Douala', 'Yaoundé', 'Bafoussam', 'Garoua',
-    'Bamenda', 'Maroua', 'Ngaoundéré', 'Bertoua',
-    'Ebolowa', 'Kumba', 'Limbe', 'Kribi',
-  ],
-}
-
-// ---------------------------------------------------------------------
-//  CÔTE D'IVOIRE — pour le clone ivoirien, remplace le bloc PAYS ci-dessus
-//  par celui-ci (et adapte SITE : nom, téléphone, momo, adresse) :
+//  Configuration multi-pays BatiShop (mono-repo)
 //
-//  export const PAYS = {
-//    code: 'CI',
-//    nom: "Côte d'Ivoire",
-//    devise: 'XOF',
-//    locale: 'fr-CI',
-//    indicatif: '225',
-//    fraisMomoPourcent: 2,
-//    villes: [
-//      'Abidjan', 'Bouaké', 'Yamoussoukro', 'San-Pédro',
-//      'Daloa', 'Korhogo', 'Man', 'Gagnoa',
-//      'Abengourou', 'Divo', 'Grand-Bassam', 'Soubré',
-//    ],
-//  }
-// ---------------------------------------------------------------------
+//  Le pays actif est choisi par la variable d'environnement :
+//      NEXT_PUBLIC_PAYS_CODE = 'CM'  (Cameroun, défaut)
+//      NEXT_PUBLIC_PAYS_CODE = 'CI'  (Côte d'Ivoire)
+//
+//  -> Sur Vercel : un projet par pays, chacun avec sa propre valeur de
+//     NEXT_PUBLIC_PAYS_CODE + ses propres clés Supabase.
+//  -> Le MÊME code alimente les deux. Tu ne modifies plus ce fichier
+//     pour changer de pays : tu changes juste la variable d'env.
+//
+//  Tout le reste du code continue d'importer SITE, PAYS, LIVRAISON,
+//  MAINTENANCE, APERCU_CODE exactement comme avant.
+// =====================================================================
 
-// =====================================================================
-//  LIVRAISON — calcul des frais à la distance
-//  frais = base + (distance magasin→client en km) × parKm
-// =====================================================================
-export const LIVRAISON = {
-  base: 1000,             // frais de base en FCFA (prise en charge minimale)
-  parKm: 150,             // tarif au kilomètre en FCFA
-  facteurRoute: 1.3,      // correction distance à vol d'oiseau -> route réelle
-  gratuiteAuDessusDe: 0,  // seuil de livraison gratuite en FCFA (0 = désactivé)
-  // Coordonnées du dépôt BatiShop (pour les livraisons "BatiShop")
-  batishopLat: 0,         // ex: 3.8480
-  batishopLng: 0,         // ex: 11.5021
-}
+type PaysCode = 'CM' | 'CI'
+
+// Lit le code pays depuis l'env, défaut CM si absent/invalide.
+const RAW_CODE = (process.env.NEXT_PUBLIC_PAYS_CODE || 'CM').toUpperCase()
+const CODE: PaysCode = RAW_CODE === 'CI' ? 'CI' : 'CM'
+
+// ---------------------------------------------------------------------
+//  Définition de chaque pays : SITE + PAYS + LIVRAISON regroupés.
+// ---------------------------------------------------------------------
+const CONFIGS = {
+  // =================================================================
+  //  CAMEROUN
+  // =================================================================
+  CM: {
+    site: {
+      nom: 'BatiShop Cameroun',
+      tel: '+237 673644892',
+      telLien: '+237673644892',
+      whatsapp: '237673644892',
+      email: 'contact@batishop-cameroun.com',
+      emailPartenaires: 'partenaires@batishop-cameroun.com',
+      adresse: 'Carrefour-Tsinga, Yaounde, Cameroun',
+      momoNom: 'BatiShop Cameroun',
+      momoMtn: '+237 6XX XXX XXX',
+      momoOrange: '+237 6XX XXX XXX',
+    },
+    pays: {
+      code: 'CM',
+      nom: 'Cameroun',
+      devise: 'XAF',        // XAF = Cameroun (CEMAC)
+      locale: 'fr-CM',
+      indicatif: '237',
+      fraisMomoPourcent: 2,
+      villes: [
+        'Douala', 'Yaoundé', 'Bafoussam', 'Garoua',
+        'Bamenda', 'Maroua', 'Ngaoundéré', 'Bertoua',
+        'Ebolowa', 'Kumba', 'Limbe', 'Kribi',
+      ],
+    },
+    livraison: {
+      base: 1000,
+      parKm: 150,
+      facteurRoute: 1.3,
+      gratuiteAuDessusDe: 0,
+      batishopLat: 0,   // ex: 3.8480
+      batishopLng: 0,   // ex: 11.5021
+    },
+  },
+
+  // =================================================================
+  //  CÔTE D'IVOIRE
+  // =================================================================
+  CI: {
+    site: {
+      nom: "BatiShop Côte d'Ivoire",
+      // TODO CI : remplace par les vrais numéros/adresse ivoiriens
+      tel: '+225 0X XX XX XX XX',
+      telLien: '+2250XXXXXXXXX',
+      whatsapp: '2250XXXXXXXXX',
+      email: 'contact@batishop-ci.com',          // TODO : domaine CI
+      emailPartenaires: 'partenaires@batishop-ci.com',
+      adresse: 'Abidjan, Côte d\'Ivoire',         // TODO : adresse exacte
+      momoNom: "BatiShop Côte d'Ivoire",
+      momoMtn: '+225 0X XX XX XX XX',             // MTN MoMo CI
+      momoOrange: '+225 0X XX XX XX XX',          // Orange Money CI
+    },
+    pays: {
+      code: 'CI',
+      nom: "Côte d'Ivoire",
+      devise: 'XOF',        // XOF = UEMOA (Afrique de l'Ouest)
+      locale: 'fr-CI',
+      indicatif: '225',
+      fraisMomoPourcent: 2,
+      villes: [
+        'Abidjan', 'Bouaké', 'Yamoussoukro', 'San-Pédro',
+        'Daloa', 'Korhogo', 'Man', 'Gagnoa',
+        'Abengourou', 'Divo', 'Grand-Bassam', 'Soubré',
+      ],
+    },
+    livraison: {
+      base: 1000,
+      parKm: 150,
+      facteurRoute: 1.3,
+      gratuiteAuDessusDe: 0,
+      batishopLat: 0,   // ex: 5.3600 (Abidjan)
+      batishopLng: 0,   // ex: -4.0083
+    },
+  },
+} as const
+
+// ---------------------------------------------------------------------
+//  Exports — mêmes noms qu'avant, alimentés par le pays actif.
+// ---------------------------------------------------------------------
+const ACTIVE = CONFIGS[CODE]
+
+export const SITE = ACTIVE.site
+export const PAYS = ACTIVE.pays
+export const LIVRAISON = ACTIVE.livraison
 
 // =====================================================================
 //  MAINTENANCE — rendre le site inaccessible au public
-//  Mettre MAINTENANCE à true puis pousser (git push) pour activer.
-//  Toi et tes testeurs gardez l'accès en visitant une fois :
-//    https://batishop-cameroun.com/?apercu=LE_CODE
-//  (un cookie est posé, l'accès reste ouvert ~30 jours sur cet appareil)
+//  Pilotable par pays via l'env si besoin (NEXT_PUBLIC_MAINTENANCE),
+//  sinon valeur par défaut ci-dessous.
+//    https://<domaine>/?apercu=LE_CODE  pour garder l'accès (~30 jours)
 // =====================================================================
-export const MAINTENANCE = true          // true = site en maintenance pour le public
-export const APERCU_CODE = 'batishop2025'  // code secret pour continuer à voir le site
+export const MAINTENANCE =
+  (process.env.NEXT_PUBLIC_MAINTENANCE ?? 'true') === 'true'
+export const APERCU_CODE = process.env.NEXT_PUBLIC_APERCU_CODE || 'batishop2025'
