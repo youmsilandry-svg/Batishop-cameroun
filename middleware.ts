@@ -9,9 +9,11 @@ export function middleware(req: NextRequest) {
 
   const { pathname, searchParams } = req.nextUrl
 
-  // Laisser passer la page de maintenance elle-même et les fichiers techniques
+  // Laisser passer la page de maintenance, le back-office et les fichiers techniques
   if (
     pathname === '/maintenance' ||
+    pathname.startsWith('/admin') ||    // back-office toujours accessible (protégé par sa connexion)
+    pathname.startsWith('/api') ||      // routes serveur (emails, etc.)
     pathname.startsWith('/_next') ||
     pathname.startsWith('/icon') ||
     pathname === '/favicon.ico' ||
