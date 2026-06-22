@@ -85,5 +85,5 @@ export const LIVRAISON = {
 //    https://batishop-cameroun.com/?apercu=LE_CODE
 //  (un cookie est posé, l'accès reste ouvert ~30 jours sur cet appareil)
 // =====================================================================
-export const MAINTENANCE = false          // true = site en maintenance pour le public
+export const MAINTENANCE = true          // true = site en maintenance pour le public
 export const APERCU_CODE = 'batishop2025'  // code secret pour continuer à voir le site
