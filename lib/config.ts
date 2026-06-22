@@ -77,3 +77,13 @@ export const LIVRAISON = {
   batishopLat: 0,         // ex: 3.8480
   batishopLng: 0,         // ex: 11.5021
 }
+
+// =====================================================================
+//  MAINTENANCE — rendre le site inaccessible au public
+//  Mettre MAINTENANCE à true puis pousser (git push) pour activer.
+//  Toi et tes testeurs gardez l'accès en visitant une fois :
+//    https://batishop-cameroun.com/?apercu=LE_CODE
+//  (un cookie est posé, l'accès reste ouvert ~30 jours sur cet appareil)
+// =====================================================================
+export const MAINTENANCE = false          // true = site en maintenance pour le public
+export const APERCU_CODE = 'batishop2025'  // code secret pour continuer à voir le site
