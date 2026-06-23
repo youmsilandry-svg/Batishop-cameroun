@@ -60,7 +60,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 shadow-md">
       <div className="bg-acier text-white text-xs py-1.5 px-4 flex justify-between items-center">
-        <span>📍 Livraison dans tout le Cameroun sous 48h</span>
+        <span>📍 Livraison dans {PAYS.villes.length} villes {PAYS.prefixe === 'au' ? 'du' : 'en'} {PAYS.nom} sous 48h</span>
         <a href={`tel:${SITE.telLien}`} className="flex items-center gap-1 text-or hover:underline">
           <Phone size={12}/> {SITE.tel}
         </a>
