@@ -88,8 +88,9 @@ export function Footer() {
         <div>
           <h4 className="font-condensed font-bold text-sm uppercase tracking-wider text-or mb-3">Paiement accepté</h4>
           <div className="space-y-2 text-sm text-white/70">
-            <div className="bg-white/10 rounded px-3 py-2">📱 Orange Money</div>
-            <div className="bg-white/10 rounded px-3 py-2">📱 MTN MoMo</div>
+            {PAYS.paiements.map((p) => (
+              <div key={p} className="bg-white/10 rounded px-3 py-2">📱 {p}</div>
+            ))}
             <div className="bg-white/10 rounded px-3 py-2">💳 Visa / Mastercard</div>
             <div className="bg-white/10 rounded px-3 py-2">💵 Paiement à la livraison</div>
           </div>
@@ -113,7 +114,7 @@ export function Footer() {
       </div>
 
       <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-white/40">
-        © {new Date().getFullYear()} © {new Date().getFullYear()} {SITE.nom} · Tous droits réservés · · Tous droits réservés ·{' '}
+        © {new Date().getFullYear()} {SITE.nom} · Tous droits réservés ·{' '}
         <Link href="/aide/confidentialite" className="hover:text-or">Politique de confidentialité</Link>
       </div>
     </footer>
