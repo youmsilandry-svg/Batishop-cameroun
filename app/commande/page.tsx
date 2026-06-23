@@ -22,7 +22,7 @@ export default function PageCommande() {
   const [commandeOk, setCommandeOk] = useState(false)
   const [erreur, setErreur] = useState('')
   const [modes, setModes] = useState<Record<string, 'retrait' | 'livraison'>>({})
-  const [form, setForm] = useState({ nom: '', telephone: '', email: '', ville: 'Douala', adresse: '', notes: '', paiement: 'reception' as 'reception' | 'en_ligne', latitude: '', longitude: '' })
+  const [form, setForm] = useState({ nom: '', telephone: '', email: '', ville: VILLES[0], adresse: '', notes: '', paiement: 'reception' as 'reception' | 'en_ligne', latitude: '', longitude: '' })
   const [geo, setGeo] = useState<'idle' | 'asking' | 'ok' | 'refused'>('idle')
   const [userId, setUserId] = useState<string | null>(null)
   const [coordsMag, setCoordsMag] = useState<Record<string, { lat: number; lng: number }>>({})
@@ -120,71 +120,62 @@ export default function PageCommande() {
 
     setEnvoi(true)
     try {
-      const numero = `BS-${Date.now().toString(36).toUpperCase()}`
-      const articlesSnapshot = parPartenaire.flatMap(g => g.lignes.map(a => ({
+      const lat = parseFloat(form.latitude), lng = parseFloat(form.longitude)
+      const gpsOk = !isNaN(lat) && !isNaN(lng)
+
+      // Le client n'envoie QUE des identifiants + quantités + mode.
+      // AUCUN prix : la fonction serveur creer_commande recalcule tout
+      // depuis la base (prix_local réel, commission, frais livraison).
+      const panier = parPartenaire.flatMap(g => g.lignes.map(a => ({
+        produit_id: a.produit.id,
+        point_vente_id: g.point_vente_id,   // 'batishop' géré côté serveur
+        quantite: a.quantite,
+        mode: modeDe(g),
+      })))
+
+      const { data, error } = await supabase.rpc('creer_commande', {
+        p_client_nom: form.nom,
+        p_client_telephone: form.telephone,
+        p_client_email: form.email || null,
+        p_client_ville: form.ville,
+        p_client_adresse: form.adresse || '—',
+        p_notes: form.notes || null,
+        p_paiement_methode: form.paiement,
+        p_client_lat: gpsOk ? lat : null,
+        p_client_lng: gpsOk ? lng : null,
+        p_user_id: userId,
+        p_panier: panier,
+      })
+      if (error) throw error
+      if (!data?.ok) throw new Error(data?.error || 'echec_commande')
+
+      const numero: string = data.numero
+      const totalServeur: number = data.total
+      const totalLivraisonServeur: number = data.total_livraison
+
+      // Snapshot d'affichage pour la page de confirmation (montants serveur)
+      const articlesAffichage = parPartenaire.flatMap(g => g.lignes.map(a => ({
         produit_id: a.produit.id, nom: a.produit.nom, prix: a.prix_unitaire,
         quantite: a.quantite, unite: a.produit.unite,
         partenaire_nom: g.partenaire_nom, point_vente_id: g.point_vente_id,
       })))
-
-      const lat = parseFloat(form.latitude), lng = parseFloat(form.longitude)
-      const gpsOk = !isNaN(lat) && !isNaN(lng)
-      // 1) Commande globale — id généré côté client (pas de relecture nécessaire)
-      const cmdId = crypto.randomUUID()
-      const { error: e1 } = await supabase.from('commandes').insert({
-        id: cmdId,
-        numero, user_id: userId, client_nom: form.nom, client_telephone: form.telephone, client_email: form.email || null,
-        client_ville: form.ville, client_adresse: form.adresse || '—', notes: form.notes || null,
-        client_latitude: gpsOk ? lat : null, client_longitude: gpsOk ? lng : null,
-        articles: articlesSnapshot,
-        total_produits: total, total_livraison: totalLivraison, total: grandTotal,
-        statut: 'en_attente', paiement_methode: form.paiement, paiement_statut: 'en_attente',
-      })
-      if (e1) throw e1
-
-      // 2) Sous-commandes + lignes (1 par partenaire)
-      for (let i = 0; i < parPartenaire.length; i++) {
-        const g = parPartenaire[i]
-        const mode = modeDe(g)
-        const frais = fraisDe(g)
-        const scId = crypto.randomUUID()
-        const { error: e2 } = await supabase.from('sous_commandes').insert({
-          id: scId,
-          commande_id: cmdId, point_vente_id: g.point_vente_id === 'batishop' ? null : g.point_vente_id,
-          numero: `${numero}-${String.fromCharCode(65 + i)}`,
-          mode, adresse_livraison: mode === 'livraison' ? (form.adresse + (gpsOk ? ` — 📍 https://maps.google.com/?q=${lat},${lng}` : '')) : null,
-          frais_livraison: frais, sous_total: g.sousTotal, total: g.sousTotal + frais,
-          statut: 'en_attente', paiement_statut: 'en_attente',
-        })
-        if (e2) throw e2
-
-        const lignes = g.lignes.map(a => ({
-          sous_commande_id: scId, produit_id: a.produit.id, nom: a.produit.nom,
-          prix_unitaire: a.prix_unitaire, quantite: a.quantite, unite: a.produit.unite,
-          sous_total: a.prix_unitaire * a.quantite,
-        }))
-        const { error: e3 } = await supabase.from('commande_lignes').insert(lignes)
-        if (e3) throw e3
-      }
-
-      // Sauvegarde locale pour l'impression sur la page de confirmation
       try {
         localStorage.setItem('batishop_last_order', JSON.stringify({
-          numero, nom: form.nom, total: grandTotal, totalLivraison,
-          articles: articlesSnapshot, paiement: form.paiement,
+          numero, nom: form.nom, total: totalServeur, totalLivraison: totalLivraisonServeur,
+          articles: articlesAffichage, paiement: form.paiement,
           ville: form.ville, adresse: form.adresse, date: new Date().toISOString(),
         }))
       } catch {}
 
-      // Email de confirmation au client (si email fourni) — sans bloquer la suite
+      // Email de confirmation (si email fourni) — montants serveur, sans bloquer
       if (form.email) {
         fetch('/api/send-order-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: form.email, nom: form.nom, numero,
-            total: grandTotal, totalLivraison,
-            articles: articlesSnapshot, paiement: form.paiement,
+            total: totalServeur, totalLivraison: totalLivraisonServeur,
+            articles: articlesAffichage, paiement: form.paiement,
             ville: form.ville, adresse: form.adresse,
           }),
         }).catch(() => {})
@@ -193,9 +184,14 @@ export default function PageCommande() {
       setCommandeOk(true)
       router.push(`/commande/confirmation?num=${numero}`)
       viderPanier()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setErreur('Une erreur est survenue. Réessayez ou appelez-nous.')
+      // Messages d'erreur lisibles selon le code renvoyé par la fonction
+      const msg = String(err?.message || '')
+      if (msg.includes('stock_insuffisant')) setErreur('Stock insuffisant pour un produit. Réduisez la quantité.')
+      else if (msg.includes('prix_indisponible')) setErreur('Un produit n\'a plus de prix disponible chez ce partenaire.')
+      else if (msg.includes('produit_introuvable') || msg.includes('magasin_introuvable')) setErreur('Un produit ou magasin n\'est plus disponible. Actualisez votre panier.')
+      else setErreur('Une erreur est survenue. Réessayez ou appelez-nous.')
       setEnvoi(false)
     }
   }
