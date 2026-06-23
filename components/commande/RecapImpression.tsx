@@ -1,5 +1,14 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { SITE, PAYS } from '../../lib/config'
+
+// jsPDF (helvetica) ne gère pas bien les accents/caractères spéciaux.
+// On translittère en ASCII le texte destiné au PDF (ex. "Côte d'Ivoire" -> "Cote d'Ivoire").
+const ascii = (s: string) =>
+  (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’]/g, "'")
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://batishop-cameroun.com'
+const SITE_DOMAIN = SITE_URL.replace(/^https?:\/\//, '')
 
 export default function RecapImpression({ num }: { num?: string }) {
   const [order, setOrder] = useState<any>(null)
@@ -18,7 +27,7 @@ export default function RecapImpression({ num }: { num?: string }) {
 
   // Format ASCII (espace normale comme séparateur) pour éviter les caractères que le PDF ne sait pas afficher
   const fmt = (n: number) => Math.round(Number(n) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA'
-  const paie = order.paiement === 'en_ligne' ? 'Paiement en ligne (Orange Money / MTN MoMo)' : 'Paiement en magasin / à la réception'
+  const paie = order.paiement === 'en_ligne' ? `Paiement en ligne (${PAYS.paiements.slice(0, 2).join(' / ')})` : 'Paiement en magasin / à la réception'
 
   const telechargerPDF = async () => {
     const mod = await import('jspdf')
@@ -31,10 +40,10 @@ export default function RecapImpression({ num }: { num?: string }) {
     doc.rect(0, 0, W, 28, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'bold'); doc.setFontSize(19)
-    doc.text('BatiShop Cameroun', M, 14)
+    doc.text(ascii(SITE.nom), M, 14)
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
     doc.setTextColor(210, 210, 210)
-    doc.text('Materiaux de construction - Livraison dans tout le Cameroun', M, 21)
+    doc.text(ascii(`Materiaux de construction - Livraison ${PAYS.prefixe} ${PAYS.nom}`), M, 21)
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
     doc.setTextColor(255, 255, 255)
     doc.text('RECU DE COMMANDE', right, 14, { align: 'right' })
@@ -105,8 +114,8 @@ export default function RecapImpression({ num }: { num?: string }) {
     // Pied de page
     doc.setDrawColor(220, 220, 220); doc.line(M, 282, right, 282)
     doc.setFontSize(8); doc.setTextColor(150, 150, 150)
-    doc.text('Merci pour votre confiance - BatiShop Cameroun', M, 288)
-    doc.text('batishop-cameroun.com', right, 288, { align: 'right' })
+    doc.text(ascii(`Merci pour votre confiance - ${SITE.nom}`), M, 288)
+    doc.text(SITE_DOMAIN, right, 288, { align: 'right' })
 
     doc.save(`commande-${order.numero}.pdf`)
   }

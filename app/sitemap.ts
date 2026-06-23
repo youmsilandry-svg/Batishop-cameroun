@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { supabase } from '../lib/supabase'
 
-const BASE = 'https://batishop-cameroun.com'
+const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://batishop-cameroun.com'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pagesFixes = ['', '/produits', '/devis', '/partenaires', '/conseils', '/contact', '/aide/faq', '/aide/livraison', '/aide/retours']

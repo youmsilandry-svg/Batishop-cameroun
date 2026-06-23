@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { supabase, VILLES } from '../lib/supabase'
+import { PAYS } from '../lib/config'
 import { CarteProduit } from '../components/produits/CarteProduit'
 
 const CATEGORIES = [
@@ -30,16 +31,45 @@ const CONSEILS = [
 
 const SERVICES = [
   { ico: '📋', titre: 'Devis professionnel', desc: 'Chiffrage rapide pour vos chantiers', href: '/devis' },
-  { ico: '🚚', titre: 'Livraison & tarifs', desc: 'Partout au Cameroun', href: '/aide/livraison' },
+  { ico: '🚚', titre: 'Livraison & tarifs', desc: `Partout ${PAYS.prefixe} ${PAYS.nom}`, href: '/aide/livraison' },
   { ico: '🏬', titre: 'Retrait en magasin', desc: 'Chez nos quincailleries partenaires', href: '/produits' },
   { ico: '🤝', titre: 'Devenir partenaire', desc: 'Quincailleries & artisans', href: '/partenaires' },
 ]
+
+// Arrondi "marketing" : 647 -> "600+", 12 -> "12". Évite d'afficher un
+// chiffre exact qui paraît petit, tout en restant honnête.
+function formatCompteur(n: number): string {
+  if (n >= 100) {
+    const base = Math.floor(n / 100) * 100
+    return `${base}+`
+  }
+  return String(n)
+}
 
 export default async function HomePage() {
   const { data: vedettes } = await supabase.from('produits')
     .select('*').eq('actif', true).order('created_at', { ascending: false }).limit(10)
   const { data: promos } = await supabase.from('produits')
     .select('*').eq('actif', true).not('prix_ancien', 'is', null).order('created_at', { ascending: false }).limit(10)
+
+  // ---- Compteurs réels (produits, villes livrées, boutiques) ----
+  const [nbProduitsRes, magasinsRes] = await Promise.all([
+    // nombre de produits actifs (head:true -> ne récupère que le count)
+    supabase.from('produits').select('id', { count: 'exact', head: true }).eq('actif', true),
+    // boutiques actives : on récupère leurs villes pour compter les villes distinctes
+    supabase.from('partenaires_magasins').select('ville').eq('actif', true).eq('statut', 'actif'),
+  ])
+  const nbProduits = nbProduitsRes.count ?? 0
+  const boutiques = magasinsRes.data || []
+  const nbBoutiques = boutiques.length
+  const nbVillesLivrees = new Set(boutiques.map((m: any) => m.ville).filter(Boolean)).size
+
+  const STATS: [string, string][] = [
+    [formatCompteur(nbProduits), 'Produits'],
+    [String(nbVillesLivrees), nbVillesLivrees > 1 ? 'Villes livrées' : 'Ville livrée'],
+    [String(nbBoutiques), nbBoutiques > 1 ? 'Boutiques' : 'Boutique'],
+    ['📱', 'Mobile Money'],
+  ]
 
   // Prix moyen (avec commission) par produit, depuis les stocks partenaires
   const idsHome = Array.from(new Set([...(vedettes || []), ...(promos || [])].map((p: any) => p.id)))
@@ -66,7 +96,7 @@ export default async function HomePage() {
         <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize: '20px 20px' }} />
         <div className="max-w-7xl mx-auto px-4 py-14 relative z-10">
           <div className="max-w-2xl">
-            <div className="inline-block bg-brique text-white text-xs font-bold px-3 py-1 rounded mb-4 uppercase tracking-widest">N°1 au Cameroun</div>
+            <div className="inline-block bg-brique text-white text-xs font-bold px-3 py-1 rounded mb-4 uppercase tracking-widest">N°1 {PAYS.prefixe} {PAYS.nom}</div>
             <h1 className="font-condensed font-bold text-4xl lg:text-5xl leading-tight mb-4">
               Tout pour <span className="text-or">construire</span><br />votre projet
             </h1>
@@ -79,7 +109,7 @@ export default async function HomePage() {
               <Link href="/devis" className="border border-white/40 hover:border-white text-white font-medium px-6 py-3 rounded transition-colors">Demander un devis</Link>
             </div>
             <div className="flex gap-8 mt-10 pt-8 border-t border-white/10">
-              {[['640+', 'Produits'], ['12', 'Villes livrées'], ['Multi', 'Boutiques'], ['📱', 'Mobile Money']].map(([n, l]) => (
+              {STATS.map(([n, l]) => (
                 <div key={l}><div className="font-condensed font-bold text-2xl text-or">{n}</div><div className="text-xs text-white/60 mt-0.5">{l}</div></div>
               ))}
             </div>
@@ -93,7 +123,7 @@ export default async function HomePage() {
           {[
             ['🚚', 'Livraison rapide', `${VILLES[0]} & ${VILLES[1]} en 24h`],
             ['✅', 'Qualité garantie', 'Produits certifiés'],
-            ['📱', 'Paiement mobile', 'Orange Money & MTN MoMo'],
+            ['📱', 'Paiement mobile', PAYS.paiements.slice(0, 2).join(' & ')],
             ['📞', 'Support 7j/7', 'À votre écoute'],
           ].map(([ico, titre, desc]) => (
             <div key={titre} className="flex items-center gap-3">
@@ -229,9 +259,9 @@ export default async function HomePage() {
           <div className="bg-acier rounded-2xl p-8 text-white">
             <div className="text-3xl mb-3">📱</div>
             <h3 className="font-condensed font-bold text-xl mb-2">Paiement facilité</h3>
-            <p className="text-white/80 text-sm mb-4">Orange Money, MTN MoMo, ou paiement en magasin / à la livraison. Sécurisé et rapide.</p>
+            <p className="text-white/80 text-sm mb-4">{PAYS.paiements.join(', ')}, ou paiement en magasin / à la livraison. Sécurisé et rapide.</p>
             <div className="flex gap-3 flex-wrap">
-              {['Orange Money', 'MTN MoMo', 'En magasin'].map(m => <span key={m} className="bg-white/10 text-white text-xs font-medium px-3 py-1 rounded-full">{m}</span>)}
+              {[...PAYS.paiements, 'En magasin'].map(m => <span key={m} className="bg-white/10 text-white text-xs font-medium px-3 py-1 rounded-full">{m}</span>)}
             </div>
           </div>
         </div>

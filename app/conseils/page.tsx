@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
+import { SITE } from '../../lib/config'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Conseils & idées travaux — BatiShop Cameroun',
+  title: `Conseils & idées travaux — ${SITE.nom}`,
   description: 'Guides pratiques pour vos travaux : calculer le béton d\'une dalle, choisir son carrelage, dimensionner une installation solaire.',
 }
 

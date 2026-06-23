@@ -12,7 +12,7 @@ export function Footer() {
             Bati<span className="text-brique">Shop</span> {PAYS.code}
           </div>
           <p className="text-sm text-white/60 leading-relaxed mb-4">
-            Votre partenaire de confiance pour tous vos matériaux de construction au Cameroun.
+            Votre partenaire de confiance pour tous vos matériaux de construction {PAYS.prefixe} {PAYS.nom}.
           </p>
           <div className="text-sm text-or font-medium">📞 {SITE.tel}</div>
           <div className="text-sm text-white/60 mt-1">✉️ {SITE.email}</div>
@@ -93,7 +93,7 @@ export function Footer() {
             <div className="bg-white/10 rounded px-3 py-2">💳 Visa / Mastercard</div>
             <div className="bg-white/10 rounded px-3 py-2">💵 Paiement à la livraison</div>
           </div>
-          <p className="text-xs text-white/40 mt-3">Livraison dans 12 villes du Cameroun</p>
+          <p className="text-xs text-white/40 mt-3">Livraison dans {PAYS.villes.length} villes {PAYS.prefixe === 'au' ? 'du' : 'en'} {PAYS.nom}</p>
         </div>
 
       </div>
@@ -103,7 +103,7 @@ export function Footer() {
         <div className="max-w-7xl mx-auto py-4 flex flex-col md:flex-row items-center justify-between gap-3 px-0">
           <div className="text-sm text-white/50">
             🤝 <span className="text-white/70 font-medium">Vous êtes une quincaillerie ou un professionnel du bâtiment ?</span>{' '}
-            Rejoignez le réseau BatiShop Cameroun.
+            Rejoignez le réseau {SITE.nom}.
           </div>
           <Link href="/partenaires"
             className="shrink-0 bg-or hover:bg-or-light text-acier font-bold text-sm px-5 py-2 rounded-lg transition-colors">
@@ -113,7 +113,7 @@ export function Footer() {
       </div>
 
       <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-white/40">
-        © {new Date().getFullYear()} BatiShop Cameroun · Tous droits réservés ·{' '}
+        © {new Date().getFullYear()} © {new Date().getFullYear()} {SITE.nom} · Tous droits réservés · · Tous droits réservés ·{' '}
         <Link href="/aide/confidentialite" className="hover:text-or">Politique de confidentialité</Link>
       </div>
     </footer>

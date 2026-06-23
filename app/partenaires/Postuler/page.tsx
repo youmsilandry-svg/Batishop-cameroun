@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import FormulaireCandidature from '../FormulaireCandidature'
+import { SITE } from '../../../lib/config'
 
 export const metadata = {
-  title: 'Postuler — Devenir partenaire BatiShop Cameroun',
+  title: `Postuler — Devenir partenaire ${SITE.nom}`,
   description: 'Remplissez le formulaire pour rejoindre le réseau de partenaires BatiShop.',
 }
 

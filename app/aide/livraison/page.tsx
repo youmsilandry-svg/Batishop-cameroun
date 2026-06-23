@@ -1,15 +1,21 @@
 import Link from 'next/link'
 import { Truck, Store, CreditCard, Clock } from 'lucide-react'
+import { PAYS } from '../../../lib/config'
 
 export const metadata = {
-  title: 'Livraison & tarifs — BatiShop Cameroun',
-  description: 'Zones de livraison, délais et frais pour vos matériaux de construction au Cameroun, ou retrait gratuit en magasin.',
+  title: `Livraison & tarifs — BatiShop ${PAYS.nom}`,
+  description: `Zones de livraison, délais et frais pour vos matériaux de construction ${PAYS.prefixe} ${PAYS.nom}, ou retrait gratuit en magasin.`,
 }
 
+// Zones générées à partir des villes du pays (config). Les 3 premières
+// villes sont listées individuellement, le reste regroupé en "Autres villes".
+// Délais indicatifs : la 1re ville (principale) plus rapide, puis dégressif.
 const ZONES = [
-  { ville: 'Douala', delai: '24 – 48 h', frais: 'À partir de 1 500 FCFA' },
-  { ville: 'Yaoundé', delai: '24 – 72 h', frais: 'À partir de 2 000 FCFA' },
-  { ville: 'Bafoussam', delai: '48 – 72 h', frais: 'Sur devis' },
+  ...PAYS.villes.slice(0, 3).map((ville, i) => ({
+    ville,
+    delai: i === 0 ? '24 – 48 h' : '48 – 72 h',
+    frais: i === 0 ? 'Au tarif boutique' : 'Sur devis',
+  })),
   { ville: 'Autres villes', delai: 'Variable', frais: 'Sur devis' },
 ]
 
@@ -68,7 +74,7 @@ export default function LivraisonPage() {
           <div className="w-10 h-10 rounded-full bg-acier/10 flex items-center justify-center shrink-0"><CreditCard className="text-acier" size={18}/></div>
           <div>
             <div className="font-bold text-acier">Paiement</div>
-            <p className="text-sm text-gray-600 mt-1">En ligne par Orange Money / MTN Mobile Money, ou en espèces en magasin (au retrait) ou à la livraison.</p>
+            <p className="text-sm text-gray-600 mt-1">En ligne par {PAYS.paiements.join(' / ')}, ou en espèces en magasin (au retrait) ou à la livraison.</p>
           </div>
         </div>
 

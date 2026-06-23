@@ -1,14 +1,18 @@
 import Link from 'next/link'
+import { PAYS } from '../../../lib/config'
 
 export const metadata = {
-  title: 'FAQ — Questions fréquentes — BatiShop Cameroun',
-  description: 'Réponses aux questions fréquentes sur les commandes, le paiement, la livraison et les devis chez BatiShop Cameroun.',
+  title: `FAQ — Questions fréquentes — BatiShop ${PAYS.nom}`,
+  description: `Réponses aux questions fréquentes sur les commandes, le paiement, la livraison et les devis chez BatiShop ${PAYS.nom}.`,
 }
+
+// Trois premières villes du pays, pour l'exemple dans la réponse livraison.
+const villesExemple = PAYS.villes.slice(0, 3).join(', ')
 
 const FAQ: { q: string; r: string }[] = [
   { q: 'Comment passer une commande ?', r: 'Parcourez le catalogue, ouvrez une fiche produit et choisissez votre boutique (BatiShop ou un partenaire proche de vous), ajoutez au panier, puis validez votre commande. Vous choisissez le retrait en magasin ou la livraison, et le mode de paiement.' },
-  { q: 'Quels sont les modes de paiement ?', r: 'Vous pouvez payer en ligne par Orange Money / MTN Mobile Money, ou payer en espèces en magasin (au retrait) ou à la livraison.' },
-  { q: 'Livrez-vous partout au Cameroun ?', r: 'Nous livrons dans les principales villes (Douala, Yaoundé, Bafoussam et environs) via nos boutiques partenaires. La disponibilité et les frais de livraison s’affichent au moment de la commande selon la boutique choisie. Voir la page Livraison & tarifs.' },
+  { q: 'Quels sont les modes de paiement ?', r: `Vous pouvez payer en ligne par ${PAYS.paiements.join(' / ')}, ou payer en espèces en magasin (au retrait) ou à la livraison.` },
+  { q: `Livrez-vous partout ${PAYS.prefixe} ${PAYS.nom} ?`, r: `Nous livrons dans les principales villes (${villesExemple} et environs) via nos boutiques partenaires. La disponibilité et les frais de livraison s’affichent au moment de la commande selon la boutique choisie. Voir la page Livraison & tarifs.` },
   { q: 'Puis-je récupérer ma commande moi-même ?', r: 'Oui. Pour chaque boutique, vous pouvez choisir le retrait en magasin (gratuit) au lieu de la livraison.' },
   { q: 'Les prix sont-ils les mêmes partout ?', r: 'Non. Chaque boutique partenaire fixe son prix ; la fiche produit affiche un prix moyen de référence et la liste des boutiques avec leur prix, leur distance et leur note, pour que vous choisissiez la meilleure offre.' },
   { q: 'Comment demander un devis pour un chantier ?', r: 'Utilisez la page Devis professionnel : indiquez les produits et quantités, joignez vos plans ou listes (photo, PDF, Excel), et nous revenons vers vous avec un chiffrage.' },

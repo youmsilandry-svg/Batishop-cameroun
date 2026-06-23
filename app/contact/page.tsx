@@ -1,16 +1,19 @@
 import Link from 'next/link'
 import { Phone, MessageCircle, Mail, MapPin, Clock } from 'lucide-react'
+import { SITE, PAYS } from '../../lib/config'
 
 export const metadata = {
-  title: 'Contactez-nous — BatiShop Cameroun',
-  description: 'Joignez l’équipe BatiShop Cameroun par téléphone, WhatsApp ou email pour vos matériaux de construction.',
+  title: `Contactez-nous — ${SITE.nom}`,
+  description: `Joignez l’équipe ${SITE.nom} par téléphone, WhatsApp ou email pour vos matériaux de construction.`,
 }
 
-const TEL = '+237 6 90 00 00 00'        // ← à remplacer par ton vrai numéro
-const TEL_RAW = '237690000000'           // ← idem (format wa.me / tel, sans espaces)
-const EMAIL = 'contact@batishop-cameroun.com' // ← à remplacer
-
 export default function ContactPage() {
+  // Coordonnées réelles depuis la config centrale (lib/config.ts)
+  const TEL = SITE.tel              // affichage
+  const TEL_RAW = SITE.telLien.replace(/[^0-9]/g, '')  // tel: (chiffres seuls)
+  const WA_RAW = SITE.whatsapp      // wa.me (déjà sans + ni espaces)
+  const EMAIL = SITE.email
+
   return (
     <div className="min-h-screen bg-beton">
       <div className="bg-acier text-white py-12 px-4">
@@ -21,7 +24,7 @@ export default function ContactPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-10 grid md:grid-cols-2 gap-5">
-        <a href={`https://wa.me/${TEL_RAW}`} target="_blank" rel="noopener noreferrer"
+        <a href={`https://wa.me/${WA_RAW}`} target="_blank" rel="noopener noreferrer"
           className="bg-white rounded-xl p-6 border border-gray-100 hover:border-brique transition-colors flex items-start gap-4">
           <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center shrink-0"><MessageCircle className="text-green-600" size={20}/></div>
           <div>
@@ -53,7 +56,7 @@ export default function ContactPage() {
           <div className="w-11 h-11 rounded-full bg-or/20 flex items-center justify-center shrink-0"><MapPin className="text-or" size={20}/></div>
           <div>
             <div className="font-bold text-acier">Adresse</div>
-            <div className="text-sm text-gray-600 mt-1">Douala, Cameroun</div>
+            <div className="text-sm text-gray-600 mt-1">{SITE.adresse}</div>
             <div className="text-sm text-gray-500 flex items-center gap-1 mt-2"><Clock size={13}/> Lun. – Sam. : 8h – 18h</div>
           </div>
         </div>

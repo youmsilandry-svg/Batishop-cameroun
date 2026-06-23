@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Search, MapPin, Clock, Store, Phone, Navigation, Filter, ChevronRight, CheckCircle, Package } from 'lucide-react'
 import { supabase, CATEGORIES, VILLES, formatPrix } from '../../lib/supabase'
+import { SITE } from '../../lib/config'
 import Link from 'next/link'
 
 const DELAIS = [
@@ -33,7 +34,7 @@ function DisponibleContent() {
 
   const [recherche, setRecherche] = useState(searchParams.get('q') || '')
   const [inputVal, setInputVal] = useState(searchParams.get('q') || '')
-  const [ville, setVille] = useState(searchParams.get('ville') || 'Douala')
+  const [ville, setVille] = useState(searchParams.get('ville') || VILLES[0])
   const [delai, setDelai] = useState(searchParams.get('delai') || 'maintenant')
   const [categorie, setCategorie] = useState(searchParams.get('categorie') || '')
 
@@ -112,10 +113,10 @@ function DisponibleContent() {
       delai === 'demain' ? 'demain' : 'semaine'
     const batishop: ResultatDisponibilite = {
       type: 'batishop',
-      nom: 'BatiShop Cameroun',
+      nom: SITE.nom,
       ville,
       adresse: `Livraison à domicile — ${ville}`,
-      telephone: '+237 6XX XXX XXX',
+      telephone: SITE.tel,
       horaires: 'Commande en ligne 24h/24',
       delai: batishopDelai,
       produits: prods.map(p => ({ ...p, quantiteDisponible: p.stock, prixLocal: p.prix })),
@@ -382,7 +383,7 @@ function DisponibleContent() {
       {!cherche && !loading && (
         <div className="grid md:grid-cols-3 gap-4 mt-4">
           {[
-            { ico: '⚡', titre: 'Retrait immédiat', desc: 'Le produit est en stock chez un partenaire à Douala. Vous pouvez venir maintenant.' },
+            { ico: '⚡', titre: 'Retrait immédiat', desc: `Le produit est en stock chez un partenaire à ${VILLES[0]}. Vous pouvez venir maintenant.` },
             { ico: '🏪', titre: 'Partenaires locaux', desc: 'Des quincailleries certifiées près de chez vous, avec leurs propres prix affichés.' },
             { ico: '🚚', titre: 'Livraison BatiShop', desc: 'Commandez en ligne. Livraison à domicile sous 24h à 72h selon votre ville.' },
           ].map(c => (

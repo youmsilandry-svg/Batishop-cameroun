@@ -1,10 +1,10 @@
 import Link from 'next/link'
 import { Store, TrendingUp, Tag, Package, Users, MapPin, ArrowRight, Phone, Mail } from 'lucide-react'
-import { SITE } from '../../lib/config'
+import { SITE, PAYS } from '../../lib/config'
 import FormulaireCandidature from './FormulaireCandidature'
 
 export const metadata = {
-  title: 'Devenir partenaire — BatiShop Cameroun',
+  title: `Devenir partenaire — ${SITE.nom}`,
   description: 'Rejoignez le réseau BatiShop : affichez vos produits, fixez vos prix et touchez de nouveaux clients dans votre ville.',
 }
 
@@ -41,7 +41,7 @@ export default function PartenairesPage() {
             Devenez partenaire BatiShop
           </h1>
           <p className="text-white/70 max-w-2xl mx-auto mb-8">
-            Rejoignez le réseau des quincailleries de référence au Cameroun. Affichez vos produits,
+            Rejoignez le réseau des quincailleries de référence {PAYS.prefixe} {PAYS.nom}. Affichez vos produits,
             fixez vos prix et touchez de nouveaux clients dans votre ville — gratuitement.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">

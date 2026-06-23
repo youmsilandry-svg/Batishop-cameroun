@@ -43,15 +43,18 @@ const CONFIGS = {
     pays: {
       code: 'CM',
       nom: 'Cameroun',
+      prefixe: 'au',
       devise: 'XAF',        // XAF = Cameroun (CEMAC)
       locale: 'fr-CM',
       indicatif: '237',
-      fraisMomoPourcent: 2,
+      fraisMomoPourcent: 1,
+      paiements: ['Orange Money', 'MTN MoMo'],   // ← AJOUTE cette ligne
       villes: [
         'Douala', 'Yaoundé', 'Bafoussam', 'Garoua',
         'Bamenda', 'Maroua', 'Ngaoundéré', 'Bertoua',
         'Ebolowa', 'Kumba', 'Limbe', 'Kribi',
       ],
+      
     },
     livraison: {
       base: 1000,
@@ -83,10 +86,12 @@ const CONFIGS = {
     pays: {
       code: 'CI',
       nom: "Côte d'Ivoire",
+      prefixe: 'en',
       devise: 'XOF',        // XOF = UEMOA (Afrique de l'Ouest)
       locale: 'fr-CI',
       indicatif: '225',
-      fraisMomoPourcent: 2,
+      fraisMomoPourcent: 1,
+      paiements: ['Wave', 'Orange Money', 'MTN MoMo', 'Moov Money'],   // ← AJOUTE cette ligne
       villes: [
         'Abidjan', 'Bouaké', 'Yamoussoukro', 'San-Pédro',
         'Daloa', 'Korhogo', 'Man', 'Gagnoa',
@@ -122,3 +127,4 @@ export const LIVRAISON = ACTIVE.livraison
 export const MAINTENANCE =
   (process.env.NEXT_PUBLIC_MAINTENANCE ?? 'true') === 'true'
 export const APERCU_CODE = process.env.NEXT_PUBLIC_APERCU_CODE || 'batishop2025'
+

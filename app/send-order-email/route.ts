@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
+import { SITE } from '../../lib/config'
 
 export const dynamic = 'force-dynamic'
+
+// URL publique du site (même variable que le reste de l'app).
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://batishop-cameroun.com'
+// Domaine "nu" pour l'affichage du lien (sans https://).
+const SITE_DOMAIN = SITE_URL.replace(/^https?:\/\//, '')
 
 // Envoi de l'email de confirmation de commande au client (via Resend).
 // Clé secrète côté serveur uniquement : process.env.RESEND_API_KEY
@@ -14,7 +20,7 @@ export async function POST(req: Request) {
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) return NextResponse.json({ ok: false, error: 'no-config' })
 
-    const from = process.env.RESEND_FROM || 'BatiShop Cameroun <onboarding@resend.dev>'
+    const from = process.env.RESEND_FROM || `${SITE.nom} <onboarding@resend.dev>`
     const bcc = process.env.RESEND_BCC // optionnel : copie à BatiShop
 
     const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' FCFA'
@@ -30,7 +36,7 @@ export async function POST(req: Request) {
     const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#222">
       <div style="background:#1A2332;padding:20px 24px;border-radius:12px 12px 0 0">
-        <span style="color:#fff;font-size:22px;font-weight:bold">Bati<span style="color:#C0392B">Shop</span> Cameroun</span>
+        <span style="color:#fff;font-size:22px;font-weight:bold">Bati<span style="color:#C0392B">Shop</span> ${SITE.nom.replace(/^BatiShop\s*/i, '')}</span>
       </div>
       <div style="border:1px solid #eee;border-top:none;border-radius:0 0 12px 12px;padding:24px">
         <h2 style="margin:0 0 4px">Merci pour votre commande${nom ? ', ' + nom : ''} !</h2>
@@ -44,7 +50,7 @@ export async function POST(req: Request) {
         ${ville ? `<p style="color:#666;font-size:14px;margin:4px 0 0">Ville : ${ville}${adresse && adresse !== '—' ? ' — ' + adresse : ''}</p>` : ''}
         <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee;color:#999;font-size:13px">
           Nous vous contacterons rapidement pour confirmer. Merci de votre confiance.<br>
-          <a href="https://batishop-cameroun.com" style="color:#C0392B">batishop-cameroun.com</a>
+          <a href="${SITE_URL}" style="color:#C0392B">${SITE_DOMAIN}</a>
         </div>
       </div>
     </div>`
@@ -52,7 +58,7 @@ export async function POST(req: Request) {
     const payload: any = {
       from,
       to: [email],
-      subject: `Votre commande ${numero || ''} — BatiShop Cameroun`,
+      subject: `Votre commande ${numero || ''} — ${SITE.nom}`,
       html,
     }
     if (bcc) payload.bcc = [bcc]
