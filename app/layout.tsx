@@ -3,6 +3,7 @@ import '../styles/globals.css'
 import SiteChrome from '../components/layout/SiteChrome'
 import { PAYS, SITE } from '../lib/config'
 import PWA from '../components/PWA'
+import { Analytics } from '@vercel/analytics/next'
 
 // URL publique du site, propre à chaque déploiement (CM / CI).
 // Définir NEXT_PUBLIC_SITE_URL sur Vercel :
@@ -68,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         <PWA />
         <SiteChrome>{children}</SiteChrome>
+        <Analytics />
       </body>
     </html>
   )
